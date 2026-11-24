@@ -52,7 +52,7 @@ Implementation, migration instrumentation test, and missing-Keystore-key preserv
 - [x] Bound rule evaluation to 1.5 seconds on a dedicated single-worker executor; timeout, executor saturation, interruption, and evaluation errors use an explicit safe-allow decision.
 - [x] Add unit coverage ensuring restoration does not overwrite a newer Silent/Vibrate choice made by the user during a VIP call.
 - [ ] Verify repeated calls, phone-state IDLE delivery, and call-end restoration on emulator and physical devices.
-- [ ] Add OEM-specific physical-device test records; emulator success alone is not proof of cellular call behavior.
+- [x] Add an OEM physical-device validation record template and required scenarios; actual device records remain pending because emulator success alone is not proof of cellular call behavior.
 
 The bounded evaluator and caller-presentation tests are committed. Ringer restoration now preserves a newer user-selected ringer mode; actual telephony lifecycle validation remains pending.
 
@@ -72,3 +72,26 @@ The bounded evaluator and caller-presentation tests are committed. Ringer restor
 - Manifest review found no unnecessary exported app components: the screening service is protected by the Android binding permission and the phone-state receiver is private.
 - `android:allowBackup="false"` is set. OEM device-to-device migration behavior still requires physical validation.
 - The current website workflow publishes on qualifying pushes to `main`; all Phase 2 work must remain on this branch until release approval.
+
+
+## Physical-device validation record — required before release
+
+No physical-device results are claimed by this document. Fill one row per actual device and retain the build SHA used.
+
+| Manufacturer / model | Android version | Build SHA | Call screening role enabled | Biometric tested | Ringer / DND tested | Backup transfer tested | Result / issue |
+|---|---|---|---|---|---|---|---|
+| Pending device 1 | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
+| Pending device 2 | Pending | Pending | Pending | Pending | Pending | Pending | Not tested |
+
+Required scenarios on each device:
+- Fresh install, permission denial/grant, app restart, and app update.
+- Enable and disable the Android call-screening role; verify the OS still identifies CallGuard as the selected screening app.
+- Unknown, private/restricted, malformed, VIP, and blocked caller presentations.
+- Repeated calls, missed/ended calls, phone-state IDLE delivery, and no stuck temporary ringer/DND override.
+- Incoming VIP call while Normal, Silent, and Vibrate are selected; change the ringer mode during the call and verify CallGuard does not overwrite the user's newer choice.
+- DND access granted and revoked; verify behavior without DND access.
+- Biometric success, failed attempt, explicit cancellation, no enrolled biometric, unavailable sensor, app background/foreground relock, and screen rotation if supported.
+- App backup and device-to-device transfer behavior; confirm encrypted local data is not restored without the matching Android Keystore key.
+- Verify the app remains usable when optional permissions are denied and that uncertain screening conditions use the documented safe-allow behavior.
+
+Do not mark any device row complete based on an emulator or a different manufacturer's device.
