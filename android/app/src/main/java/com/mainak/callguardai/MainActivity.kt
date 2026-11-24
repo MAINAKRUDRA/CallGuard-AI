@@ -234,8 +234,8 @@ class MainActivity : ComponentActivity() {
 
         content.addView(sectionTitle("VIP ring override"), matchWrap().apply { topMargin = dp(24) })
         val vipCard = card()
-        vipCard.addView(label("Let VIP callers ring through Silent / Vibrate", "#172B45", 16, true))
-        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches the ringer to Normal and restores your previous Silent or Vibrate mode when the call ends.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        vipCard.addView(label("Let VIP callers ring through Silent / Vibrate / DND", "#172B45", 16, true))
+        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches Silent/Vibrate to Ring and pauses the active Do Not Disturb filter. It restores the saved phone modes after the call ends. This requires Android permissions and may be restricted by some devices.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
         ringerStatus = label("Current phone mode: checking…", "#245A9B", 12, true).apply {
             background = rounded("#EAF1FC", 10)
             setPadding(dp(10), dp(9), dp(10), dp(9))
@@ -261,7 +261,7 @@ class MainActivity : ComponentActivity() {
         vipCard.addView(actionButton("Open Do Not Disturb access settings", false) {
             openNotificationPolicySettings()
         }, matchWrap().apply { topMargin = dp(8) })
-        vipCard.addView(label("Grant CallGuard AI access on the Android screen that opens, then return here. Requires Contacts, Phone state and Notification Policy Access. DND itself is never bypassed. SMS permission is not needed.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
+        vipCard.addView(label("Grant CallGuard AI access on the Android screen that opens, then return here. Requires Contacts, Phone state and Notification Policy Access. When this feature is enabled, DND may be paused temporarily for a VIP call and then restored. SMS and overlay permissions are not needed.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
         content.addView(vipCard, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Your rules"), matchWrap().apply { topMargin = dp(24) })
@@ -446,7 +446,7 @@ class MainActivity : ComponentActivity() {
         }
         ringerStatus.text = buildString {
             append("Phone mode: $mode · $access")
-            if (dnd) append(" · Do Not Disturb is active; VIP override will not bypass it")
+            if (dnd) append(" · Do Not Disturb is active; VIP override will temporarily pause it for a matched VIP call if Android allows it")
         }
     }
 
@@ -503,7 +503,7 @@ class MainActivity : ComponentActivity() {
         VipRingerOverride.setEnabled(this, enabled)
         syncVipRingSwitch()
         showStatus(if (enabled) {
-            "VIP ring override enabled. VIP calls can temporarily ring through Silent/Vibrate when Do Not Disturb is off."
+            "VIP ring override enabled. For matched VIP calls, CallGuard will try to enable Ring mode and temporarily pause DND, then restore your previous settings after the call."
         } else {
             "VIP ring override was not enabled. Grant Contacts, Phone state, and Notification Policy Access."
         })
