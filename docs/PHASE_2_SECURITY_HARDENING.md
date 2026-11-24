@@ -23,6 +23,7 @@ This phase is development-only until the owner explicitly authorizes a release.
 - [x] Retain the existing 90-day retention regression test.
 
 ### 2B — Screening reliability
+- [x] Add unit tests for explicit VIP allow, allow-over-block precedence, explicit block, unknown caller safe-allow, and missing/blank caller ID safe-allow.
 - [ ] Add tests for duplicate, restricted, malformed, and unavailable caller presentations.
 - [ ] Verify callback deadline behavior and safe allow fallback under database/Keystore failures.
 - [ ] Verify repeated calls and call-end restoration do not leave the ringer changed.
