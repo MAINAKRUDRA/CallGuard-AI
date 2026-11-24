@@ -18,6 +18,9 @@ object PhoneNumberCanonicalizer {
         }
     }
 
+    fun isSupportedRegion(region: String): Boolean =
+        region in util.supportedRegions
+
     fun defaultRegion(): String =
         Locale.getDefault().country.takeIf { it.length == 2 }?.uppercase(Locale.ROOT) ?: "US"
 }
