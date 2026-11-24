@@ -2,34 +2,36 @@
 
 Android-first call screening and personal call management.
 
-> **Current scope:** Phase 1 MVP — local incoming-call screening, contacts/VIP allow-list, explicit allow/block rules, explainable decisions, and a private activity log. The AI receptionist is a separate later phase requiring a supported carrier-forwarding or SIP/VoIP audio route.
+> **Current product scope:** local incoming-call screening, explicit allow/block rules, VIP contacts, optional VIP ringer override, explainable decisions, and encrypted local activity history. The AI receptionist is not part of the current MVP; it requires a separately validated carrier-forwarding or SIP/VoIP audio route.
 
 ## Product principles
 
-- **Allow-first safety:** uncertain callers are allowed by default.
-- **VIP protection:** explicit allow/VIP rules take priority over block rules.
-- **Explainability:** every screening decision records a rule/reason.
-- **Local-first privacy:** screening policy and event data stay on-device in the MVP.
-- **VIP ring override:** optional, permission-gated behavior temporarily switches Silent/Vibrate to Normal for explicit VIP matches, then restores the prior mode when the phone reports the call has ended.
-- **No false AI claims:** ordinary Android apps do not receive general cellular call audio. Live AI answering is not part of this MVP.
+- **Allow-first safety:** unknown, malformed, restricted, or uncertain callers are allowed by default.
+- **VIP precedence:** explicit allow/VIP rules take priority over block rules.
+- **Explainability:** screening decisions retain an action and reason.
+- **Local-first privacy:** screening rules and activity history are stored on-device.
+- **User control:** VIP ring override is optional and permission-gated. It temporarily changes supported ringer/DND states for explicit VIP matches and attempts to restore the previous state after the call.
+- **No false AI claims:** ordinary Android apps do not receive general cellular call audio. Live AI answering is not included in this MVP.
 
-## Security and number handling
+## Security and data handling
 
-- Allow/block rules are stored as a single AES-256-GCM authenticated ciphertext.
-- The AES key is generated and retained in Android Keystore; it is not stored in app preferences.
-- Existing plaintext SharedPreferences rules are migrated on first read; legacy keys are removed only after the encrypted write succeeds.
-- Phone numbers are validated and canonicalized to E.164 using Google's libphonenumber.
-- Users can select a supported two-letter phone region in the app (for example IN, US, or GB); the initial value comes from device locale. Local-format input uses this selected region.
-- International numbers beginning with + are parsed independently of the selected region.
-- Call history stores masked numbers, retains at most 1,000 events, and deletes events older than 90 days. The history database itself is app-private but not encrypted.
+- Allow/block rules are stored as AES-256-GCM authenticated ciphertext.
+- Rule and call-history encryption keys are non-exportable Android Keystore keys.
+- Decryption requires the existing key. If a key is missing or invalidated, CallGuard reports a storage error and does not silently create a replacement that would make old ciphertext appear recoverable.
+- Legacy plaintext rule preferences are migrated on first read; legacy keys are removed only after the encrypted write succeeds.
+- Call-history number, action, and reason fields are encrypted at rest with AES-256-GCM. Database schema v2-to-v3 migration encrypts legacy rows transactionally before dropping the plaintext table.
+- Call history is capped at 1,000 events and pruned after 90 days.
+- Phone numbers are validated and canonicalized to E.164 using Google's libphonenumber. Users can select a supported two-letter region; international numbers beginning with + are parsed independently of that region.
+- The optional biometric lock is a system BiometricPrompt UI gate. It is **not** biometric-bound encryption or per-operation cryptographic authentication.
 
 ## Technical baseline
 
-- Native Android / Kotlin, API 35 target, API 26 minimum
+- Native Android / Kotlin; minimum API 26; target API 35
 - Android Telecom CallScreeningService
 - Android Keystore AES-256-GCM
 - Google libphonenumber
 - SQLiteOpenHelper with forward-only schema migrations
+- AndroidX BiometricPrompt for optional strong-biometric app access gating
 
 ## Build and test
 
@@ -40,7 +42,7 @@ gradle :android:app:testDebugUnitTest
 gradle :android:app:assembleDebug
 ```
 
-GitHub Actions runs unit tests and builds a debug APK on pushes and pull requests to main. A separate API 35 emulator job installs and launches the app. Download the callguard-debug-apk artifact from a successful workflow run.
+GitHub Actions runs JVM unit tests, builds a debug APK, and runs Android instrumentation plus an API 35 emulator launch smoke test. A successful CI debug artifact is for testing only; it is not a production release APK.
 
 For a local device smoke test, enable Developer options and USB debugging, connect an Android 10+ device, then run:
 
@@ -49,57 +51,67 @@ adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 adb shell monkey -p com.mainak.callguardai 1
 ```
 
-Grant the Call Screening role inside the app and test with a second phone. Confirm allow, block, unknown-caller fallback, and contact import behavior on the target OEM/device. An emulator launch does not prove real cellular call screening on every OEM.
+Grant the Call Screening role inside the app and test with a second phone. Confirm allow, block, unknown-caller fallback, VIP behavior, and contact matching on the target OEM/device. An emulator launch does not prove real cellular call screening on every OEM.
 
 ## Platform and security limitations
 
-- The screening service must respond within Android's callback deadline. Persistence is performed after the Telecom response.
-- If the Keystore key is invalidated or app data is restored without its key, encrypted rules cannot be decrypted. The app reports a storage error rather than silently replacing rules.
-- Restricted/private caller presentations may not expose a number to the screening callback.
-- VIP ring override requires the user to grant Phone state permission and Android Notification Policy Access. It only changes Silent/Vibrate when Do Not Disturb is off, and restores the prior ringer mode after the call. OEM behavior and ringtone-volume settings can still differ; physical alert switches may not be controllable.
-- CallGuard deliberately does not request SMS, call-log, microphone, or storage permissions: they are not required for the current call-screening features. Contacts access is requested only when the user imports contacts or enables VIP ring override (Android otherwise excludes saved-contact calls from CallScreeningService); Phone state is requested only when the user enables VIP ring override.
-- CI derives a monotonically increasing Android versionCode from the full Git commit history and publishes a new APK to the website after successful unit tests/build. Android will still require the user to confirm installation of a downloaded APK; silent self-installation is not available to an ordinary sideloaded app.
+- Android's CallScreeningService callback has a strict response deadline. Rule evaluation is bounded; timeout, worker saturation, interruption, or evaluation failure uses the allow-first fallback.
+- Restricted/private caller presentations may not expose a usable number to the screening callback.
+- VIP ring override requires user-granted Contacts, Phone state, and Android Notification Policy Access. It only changes supported ringer/DND states and preserves a newer ringer/DND choice made by the user during a call. OEM behavior, ringtone volume, and physical alert switches can differ.
+- CallGuard does not request SMS, call-log, microphone, or overlay permissions for the current feature set. Contacts access is requested for saved-contact screening and selected-contact VIP setup; Phone state is used for VIP call-end restoration.
+- Application backup is disabled with `android:allowBackup="false"`. OEM device-to-device transfer behavior still requires physical-device validation; do not assume this flag alone proves every OEM transfer path is blocked.
+- If app data is restored without the matching Android Keystore key, encrypted rules/history cannot be decrypted. The app reports an error rather than silently replacing the key.
 - A third-party app cannot generally capture both sides of an ordinary cellular call. AI receptionist functionality requires a separately validated telephony bridge.
-- Activity history uses masked numbers but SQLite is not encrypted in this phase.
+- Sideloaded APK installation and updates require the user to confirm Android's package installer. An ordinary sideloaded app cannot silently self-install updates.
 
 Never commit API keys, signing credentials, real call records, contact exports, or production secrets. Do not put privileged backend tokens in the APK. Use synthetic data in tests and demos.
 
-## Status
+## Development status
 
-### Phase 1A — screening foundation
-- [x] Android screening-role onboarding
-- [x] Kotlin screening callback
-- [x] Allow-first deterministic policy
-- [x] Explicit allow/block rules with VIP precedence
+### Phase 1 — MVP functionality
 
-### Phase 1B — usable MVP controls
-- [x] Manual add/remove for allow and block rules
-- [x] Optional contacts permission and contact-to-VIP import
-- [x] Local SQLite screening activity history
-- [x] Caller numbers masked in activity history
-- [x] Clear local activity history
+- [x] Android call-screening role onboarding and service
+- [x] Allow-first policy and explicit allow/block rules
+- [x] VIP allow precedence over block rules
+- [x] Phone-number normalization and selectable region
+- [x] Contact selection and VIP matching
+- [x] Local screening activity with clear-history control
+- [x] Optional VIP ringer override
 
-### Phase 1C — security and reliability
-- [x] AES-256-GCM encrypted rules using Android Keystore
-- [x] Migration from legacy plaintext rule preferences
-- [x] E.164 normalization using libphonenumber
-- [x] User-selectable phone region and validation
-- [x] Explicit confirmation before importing all contacts as VIPs
-- [x] SQLite schema version 2 migration and timestamp index
-- [x] 90-day retention and 1,000-event cap
-- [x] Allow-first callback fallback on rule-store errors
-- [x] Optional VIP Silent/Vibrate override with call-end restoration (requires user-granted Phone state and Notification Policy Access; DND is not bypassed)
-- [x] Automatic versionCode/versionName generation from full Git history in CI
-- [ ] Verify latest GitHub Actions results for VIP override and versioning
-- [ ] Verify real call screening on physical Android devices
+### Phase 2 — security and production-readiness hardening
 
-**Validation status:** GitHub Actions unit tests and debug APK assembly passed on run [45402061040](https://github.com/MAINAKRUDRA/CallGuard-AI/actions/runs/45402061040). The API 35 emulator job was still running at the last check. The subsequent region-setting changes trigger a fresh workflow run and must pass separately. No physical-device call test is claimed.
+- [x] AES-256-GCM encrypted rules and call-history fields
+- [x] Android Keystore-backed key handling and key-loss-safe decryption
+- [x] Transactional migration of legacy plaintext call history
+- [x] Bounded screening evaluation with allow-first fallback
+- [x] Regression tests for caller normalization and ringer restoration policy
+- [x] Biometric app-lock lifecycle source fixes
+- [x] Release workflow hardened to require production signing and emulator smoke checks
+- [ ] Latest API 35 emulator instrumentation/smoke run must complete successfully
+- [ ] Physical-device validation on at least two Android manufacturers
+- [ ] OEM backup/device-to-device transfer validation
+- [ ] Configure and verify production signing secrets outside source control
+- [ ] Explicit owner approval before merge or release
 
-## Public website and APK downloads
+See [Phase 2 security hardening](docs/PHASE_2_SECURITY_HARDENING.md) for implementation details and the physical-device test matrix.
+
+### Phase 3 — product reliability and usability
+
+- [ ] Review permission onboarding and recovery paths on Android 10–16
+- [ ] Improve accessibility: content descriptions, touch targets, text scaling, and TalkBack order
+- [ ] Verify layouts and controls at small, large, and landscape screen sizes
+- [ ] Add automated UI coverage for primary settings and rule-management flows
+- [ ] Verify app behavior after process death, reboot, permission revocation, and app update
+- [ ] Validate contact matching and VIP ring override across OEM devices
+- [ ] Keep product claims and setup instructions synchronized with actual Android platform behavior
+
+Phase 3 work is development-only until separately approved.
+
+## Website and release automation
 
 - Website source: [`website/`](website/)
 - Vercel setup: [`docs/VERCEL_WEBSITE_DEPLOYMENT.md`](docs/VERCEL_WEBSITE_DEPLOYMENT.md)
-- Vercel configuration: [`vercel.json`](vercel.json)
-- APK release workflow: [`.github/workflows/publish-apk-release.yml`](.github/workflows/publish-apk-release.yml)
+- GitHub Release workflow: [`.github/workflows/publish-apk-release.yml`](.github/workflows/publish-apk-release.yml)
+- Website APK workflow: [`.github/workflows/publish-website-apk.yml`](.github/workflows/publish-website-apk.yml)
 
-The website's direct APK link is updated by the `Publish APK to Website` workflow after a successful build. The public download is a debug-signed test APK, not a production Play Store build. Sideloaded APK updates require the user to open and confirm the Android package installer; Play Store distribution is required for normal managed auto-updates.
+Production release workflows require the configured Android signing secrets, a signed non-debuggable release APK, and successful emulator smoke checks. CI debug APK artifacts are not production releases. No merge, tag, GitHub Release, or website APK publication is authorized as part of this development phase.
