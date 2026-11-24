@@ -32,7 +32,7 @@ object ContactImporter {
             if (numberColumn < 0) return 0
             while (cursor.moveToNext()) {
                 val rawNumber = cursor.getString(numberColumn) ?: continue
-                val canonical = CallGuardPolicy.normalizeNumber(rawNumber) ?: continue
+                val canonical = CallGuardPolicy.normalizeNumber(rawNumber, CallGuardPolicy.selectedRegion(context)) ?: continue
                 val name = if (nameColumn >= 0) cursor.getString(nameColumn)?.trim().orEmpty() else ""
                 if (CallGuardPolicy.addAllow(context, canonical)) imported++
                 if (name.isNotBlank()) editor.putString(canonical, name)
