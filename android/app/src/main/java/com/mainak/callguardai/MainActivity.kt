@@ -53,8 +53,40 @@ class MainActivity : ComponentActivity() {
         updateRoleStatus()
     }
     private val contactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) importContactsNow()
-        else showStatus("Contacts permission was not granted. You can still add VIP numbers manually.")
+        if (granted) launchContactPicker()
+        else showStatus("Contacts permission was not granted. You can still enter a phone number manually.")
+    }
+
+    private val contactPicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val contactUri = result.data?.data
+            if (contactUri == null) {
+                showStatus("No contact was selected.")
+            } else {
+                try {
+                    val projection = arrayOf(
+                        android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                    )
+                    contentResolver.query(contactUri, projection, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val nameIndex = cursor.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                            val numberIndex = cursor.getColumnIndex(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER)
+                            val name = if (nameIndex >= 0) cursor.getString(nameIndex).orEmpty() else ""
+                            val number = if (numberIndex >= 0) cursor.getString(numberIndex).orEmpty() else ""
+                            if (number.isNotBlank() && ContactImporter.addSelected(this, name, number)) {
+                                showStatus("${name.ifBlank { "Contact" }} added to VIP. Only the contact you selected was saved.")
+                                refreshScreen()
+                            } else {
+                                showStatus("This contact has no valid phone number for region ${CallGuardPolicy.selectedRegion(this)}.")
+                            }
+                        } else showStatus("Could not read the selected contact.")
+                    } ?: showStatus("Could not open the selected contact.")
+                } catch (error: RuntimeException) {
+                    showStatus("Could not add this contact: ${error.message ?: "unknown error"}")
+                }
+            }
+        }
     }
 
     private val callScreeningContactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -194,21 +226,14 @@ class MainActivity : ComponentActivity() {
 
         content.addView(sectionTitle("Contacts"), matchWrap().apply { topMargin = dp(24) })
         val contactsCard = card()
-        contactsCard.addView(label("Import trusted contacts", "#172B45", 16, true))
-        contactsCard.addView(label("Imports phone numbers only from this device’s Contacts app into your encrypted VIP allow-list. It does not read your call history, SMS, or messages.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
-        importSummary = label("No contacts imported in this session.", "#147A48", 12, true)
+        contactsCard.addView(label("Add one contact as VIP", "#172B45", 16, true))
+        contactsCard.addView(label("Choose a single person from your phone contacts. Android returns you to CallGuard, and that selected phone number is normalized and saved to your VIP list. No bulk import.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        importSummary = label("No contact selected yet.", "#147A48", 12, true)
         contactsCard.addView(importSummary, matchWrap().apply { topMargin = dp(10) })
-        contactsCard.addView(actionButton("Review and import contacts", false) {
-            AlertDialog.Builder(this)
-                .setTitle("Import contacts as VIPs?")
-                .setMessage("Phone numbers from your device address book will be added to the on-device VIP allow-list. No call-log or SMS data is imported. Continue?")
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Continue") { _, _ ->
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                        importContactsNow()
-                    } else contactsPermission.launch(Manifest.permission.READ_CONTACTS)
-                }
-                .show()
+        contactsCard.addView(actionButton("Select contact and add to VIP", true) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                launchContactPicker()
+            } else contactsPermission.launch(Manifest.permission.READ_CONTACTS)
         }, matchWrap().apply { topMargin = dp(12) })
         content.addView(contactsCard, matchWrap().apply { topMargin = dp(10) })
 
@@ -360,15 +385,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun importContactsNow() {
-        try {
-            val count = ContactImporter.importAll(this)
-            importSummary.text = "Imported ${count} valid phone number(s) into your VIP list."
-            showStatus("Contact import completed.")
-            refreshScreen()
-        } catch (error: RuntimeException) {
-            showStatus("Contact import failed: " + (error.message ?: "unknown error"))
-        }
+    private fun launchContactPicker() {
+        val intent = Intent(
+            Intent.ACTION_PICK,
+            android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+        )
+        intent.type = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+        contactPicker.launch(intent)
     }
 
     private fun updateRingerStatus() {
