@@ -2,8 +2,7 @@ name: Publish APK to Website
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "android/**"
       - "gradle/**"
@@ -11,6 +10,7 @@ on:
       - "settings.gradle.kts"
       - "build.gradle.kts"
       - "gradle.properties"
+      - "website/**"
       - ".github/workflows/publish-website-apk.yml"
 
 permissions:
@@ -29,6 +29,11 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+
+      - name: Refresh main before building
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
 
       - name: Set automatic app version from commit count
         run: echo "CALLGUARD_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
@@ -50,24 +55,20 @@ jobs:
       - name: Build debug APK
         run: gradle :android:app:assembleDebug
 
-      - name: Refresh main before publishing
-        run: |
-          git fetch origin main
-          git reset --hard origin/main
-
-      - name: Publish APK into website
+      - name: Publish APK and version metadata
         run: |
           mkdir -p website/downloads
           cp android/app/build/outputs/apk/debug/app-debug.apk website/downloads/callguard-ai.apk
+          printf '{"versionName":"0.3.%s","versionCode":%s,"sourceCommit":"%s"}\n' "$CALLGUARD_BUILD_NUMBER" "$CALLGUARD_BUILD_NUMBER" "$(git rev-parse HEAD)" > website/version.json
 
-      - name: Commit APK to main
+      - name: Commit website release
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add website/downloads/callguard-ai.apk
+          git add website/downloads/callguard-ai.apk website/version.json
           if git diff --cached --quiet; then
-            echo "APK is already up to date."
+            echo "Website APK and version metadata are already up to date."
           else
-            git commit -m "Publish latest CallGuard AI website APK"
+            git commit -m "Publish CallGuard AI website release"
             git push origin HEAD:main
           fi
