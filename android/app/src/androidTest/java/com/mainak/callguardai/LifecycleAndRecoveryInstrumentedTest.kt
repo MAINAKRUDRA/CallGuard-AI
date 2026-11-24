@@ -3,8 +3,10 @@ package com.mainak.callguardai
 import android.Manifest
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.app.NotificationManager
 import android.os.ParcelFileDescriptor
 import androidx.test.core.app.ActivityScenario
+import androidx.lifecycle.Lifecycle
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.scrollTo
@@ -18,6 +20,7 @@ import com.mainak.callguardai.data.SecureRuleStore
 import com.mainak.callguardai.screening.VipRingerOverride
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.FileInputStream
@@ -34,26 +37,43 @@ class LifecycleAndRecoveryInstrumentedTest {
     }
 
     @Test
-    fun revokingContactsAccessDisablesVipOverrideOnNextResume() {
-        val permission = Manifest.permission.READ_CONTACTS
-        val wasGranted = context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+    fun revokingContactsAccessWhileBackgroundedDisablesVipOverrideOnResume() {
+        val contacts = Manifest.permission.READ_CONTACTS
+        val phoneState = Manifest.permission.READ_PHONE_STATE
         val packageName = context.packageName
+        val contactsWasGranted = context.checkSelfPermission(contacts) == PackageManager.PERMISSION_GRANTED
+        val phoneWasGranted = context.checkSelfPermission(phoneState) == PackageManager.PERMISSION_GRANTED
+        val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
+        val dndWasGranted = notificationManager.isNotificationPolicyAccessGranted
         try {
-            shell("pm revoke $packageName $permission")
-            VipRingerOverride.setEnabled(context, true)
+            if (!contactsWasGranted) shell("pm grant $packageName $contacts")
+            if (!phoneWasGranted) shell("pm grant $packageName $phoneState")
+            if (!dndWasGranted) shell("cmd notification allow_dnd $packageName")
+            assumeTrue(
+                "Emulator must grant Contacts, Phone state, and DND access for this revocation test",
+                VipRingerOverride.hasRequiredAccess(context)
+            )
 
-            ActivityScenario.launch(MainActivity::class.java).use {
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                VipRingerOverride.setEnabled(context, true)
+                scenario.moveToState(Lifecycle.State.CREATED)
+                shell("pm revoke $packageName $contacts")
+                scenario.moveToState(Lifecycle.State.RESUMED)
                 instrumentation.waitForIdleSync()
+
                 assertFalse(
-                    "VIP override must fail closed when its required Contacts permission is revoked",
+                    "VIP override must fail closed after Contacts permission is revoked",
                     VipRingerOverride.isEnabled(context)
                 )
                 onView(withText("Enable VIP ring override")).check(matches(isDisplayed()))
             }
         } finally {
-            if (wasGranted) shell("pm grant $packageName $permission")
-            else shell("pm revoke $packageName $permission")
             VipRingerOverride.setEnabled(context, false)
+            if (contactsWasGranted) shell("pm grant $packageName $contacts")
+            else shell("pm revoke $packageName $contacts")
+            if (phoneWasGranted) shell("pm grant $packageName $phoneState")
+            else shell("pm revoke $packageName $phoneState")
+            if (!dndWasGranted) shell("cmd notification disallow_dnd $packageName")
         }
     }
 
