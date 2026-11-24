@@ -10,6 +10,7 @@ Android-first call screening and personal call management.
 - **VIP protection:** explicit allow/VIP rules take priority over block rules.
 - **Explainability:** every screening decision records a rule/reason.
 - **Local-first privacy:** screening policy and event data stay on-device in the MVP.
+- **VIP ring override:** optional, permission-gated behavior temporarily switches Silent/Vibrate to Normal for explicit VIP matches, then restores the prior mode when the phone reports the call has ended.
 - **No false AI claims:** ordinary Android apps do not receive general cellular call audio. Live AI answering is not part of this MVP.
 
 ## Security and number handling
@@ -55,7 +56,9 @@ Grant the Call Screening role inside the app and test with a second phone. Confi
 - The screening service must respond within Android's callback deadline. Persistence is performed after the Telecom response.
 - If the Keystore key is invalidated or app data is restored without its key, encrypted rules cannot be decrypted. The app reports a storage error rather than silently replacing rules.
 - Restricted/private caller presentations may not expose a number to the screening callback.
-- DND, silent-mode, physical alert switches, and VIP alert overrides vary by Android version and OEM.
+- VIP ring override requires the user to grant Phone state permission and Android Notification Policy Access. It only changes Silent/Vibrate when Do Not Disturb is off, and restores the prior ringer mode after the call. OEM behavior and ringtone-volume settings can still differ; physical alert switches may not be controllable.
+- CallGuard deliberately does not request SMS, call-log, microphone, or storage permissions: they are not required for the current call-screening features. Contacts access is requested only when the user chooses contact import; Phone state is requested only when the user enables VIP ring override.
+- CI derives a monotonically increasing Android versionCode from the full Git commit history and publishes a new APK to the website after successful unit tests/build. Android will still require the user to confirm installation of a downloaded APK; silent self-installation is not available to an ordinary sideloaded app.
 - A third-party app cannot generally capture both sides of an ordinary cellular call. AI receptionist functionality requires a separately validated telephony bridge.
 - Activity history uses masked numbers but SQLite is not encrypted in this phase.
 
@@ -85,7 +88,9 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 - [x] SQLite schema version 2 migration and timestamp index
 - [x] 90-day retention and 1,000-event cap
 - [x] Allow-first callback fallback on rule-store errors
-- [ ] Verify GitHub Actions results
+- [x] Optional VIP Silent/Vibrate override with call-end restoration (requires user-granted Phone state and Notification Policy Access; DND is not bypassed)
+- [x] Automatic versionCode/versionName generation from full Git history in CI
+- [ ] Verify latest GitHub Actions results for VIP override and versioning
 - [ ] Verify real call screening on physical Android devices
 
 **Validation status:** GitHub Actions unit tests and debug APK assembly passed on run [45402061040](https://github.com/MAINAKRUDRA/CallGuard-AI/actions/runs/45402061040). The API 35 emulator job was still running at the last check. The subsequent region-setting changes trigger a fresh workflow run and must pass separately. No physical-device call test is claimed.
@@ -97,4 +102,4 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 - Vercel configuration: [`vercel.json`](vercel.json)
 - APK release workflow: [`.github/workflows/publish-apk-release.yml`](.github/workflows/publish-apk-release.yml)
 
-The website download button uses the latest GitHub Release asset URL. A release must be published before the APK link returns a downloadable file. The automated release currently publishes a debug-signed test APK, not a production Play Store build.
+The website's direct APK link is updated by the `Publish APK to Website` workflow after a successful build. The public download is a debug-signed test APK, not a production Play Store build. Sideloaded APK updates require the user to open and confirm the Android package installer; Play Store distribution is required for normal managed auto-updates.
