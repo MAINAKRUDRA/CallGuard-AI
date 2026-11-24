@@ -57,6 +57,15 @@ class MainActivity : ComponentActivity() {
         else showStatus("Contacts permission was not granted. You can still add VIP numbers manually.")
     }
 
+    private val screeningContactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) requestPhoneStatePermission()
+        else {
+            VipRingerOverride.setEnabled(this, false)
+            syncVipRingSwitch()
+            showStatus("Contacts access is needed so Android sends saved-contact calls to CallGuard for VIP matching.")
+        }
+    }
+
     private val phoneStatePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) requestNotificationPolicyAccess()
         else {
@@ -362,8 +371,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startVipRingSetup() {
-        // Keep the switch off until both user-controlled permissions are granted.
+        // Contacts access lets Android deliver saved-contact calls to CallScreeningService.
         VipRingerOverride.setEnabled(this, false)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            screeningContactsPermission.launch(Manifest.permission.READ_CONTACTS)
+            return
+        }
+        requestPhoneStatePermission()
+    }
+
+    private fun requestPhoneStatePermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
             phoneStatePermission.launch(Manifest.permission.READ_PHONE_STATE)
             return
