@@ -33,7 +33,7 @@ class CallGuardScreeningService : CallScreeningService() {
             Log.e(TAG, "Unable to submit screening response", error)
             return
         }
-        val number = CallGuardPolicy.normalizeNumber(callDetails.handle?.schemeSpecificPart)
+        val number = CallGuardPolicy.normalizeNumber(callDetails.handle?.schemeSpecificPart, CallGuardPolicy.selectedRegion(applicationContext))
         io.execute {
             runCatching {
                 val store = CallEventStore(applicationContext)
