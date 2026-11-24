@@ -135,9 +135,13 @@ class MainActivity : ComponentActivity() {
         hero.addView(roleBadge, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(18) })
-        hero.addView(actionButton("Enable call screening", true) { requestScreeningRole() }.apply {
+        hero.addView(actionButton("Set as caller ID & spam app", true) { requestScreeningRole() }.apply {
             setTextColor(Color.rgb(20, 36, 58))
         }, matchWrap().apply { topMargin = dp(14) })
+        hero.addView(actionButton("Open Android default-app settings", false) {
+            openDefaultCallerIdSettings()
+        }, matchWrap().apply { topMargin = dp(8) })
+        hero.addView(label("CallGuard must hold Android's Call Screening role (shown as Caller ID & spam app on many phones). This is separate from the default Phone/Dialer app. Display-over-other-apps permission is not required for Android call screening.", "#D6E1EF", 12, false), matchWrap().apply { topMargin = dp(8) })
         content.addView(hero, matchWrap())
 
         status = label("Checking call screening status…", "#334155", 13, true).apply {
@@ -467,6 +471,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun openDefaultCallerIdSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+        } catch (_: Exception) {
+            showStatus("Open Android Settings → Apps → Default apps → Caller ID & spam app, then select CallGuard AI.")
+        }
+    }
+
     private fun requestScreeningRole() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             showStatus("Call screening role requires Android 10 or later.")
@@ -499,9 +511,9 @@ class MainActivity : ComponentActivity() {
         }
         val manager = getSystemService(Context.ROLE_SERVICE) as RoleManager
         val enabled = granted ?: manager.isRoleHeld(RoleManager.ROLE_CALL_SCREENING)
-        val message = if (enabled) "Call screening is enabled on this device." else "Call screening is not enabled yet. Enable it to start screening calls."
+        val message = if (enabled) "CallGuard is the active Android call-screening / caller ID app. It can work alongside Truecaller as the dialer, but only one app can hold this screening role." else "Select CallGuard AI as the Android Caller ID & spam app. If another caller ID app (such as Truecaller) owns this role, Android must transfer the role to CallGuard."
         status.text = message
-        roleBadge.text = if (enabled) "●  SCREENING ACTIVE" else "○  SCREENING NOT ENABLED"
+        roleBadge.text = if (enabled) "●  CALLER ID & SPAM ROLE ACTIVE" else "○  CALLGUARD NOT SELECTED AS CALLER ID APP"
         roleBadge.background = rounded(if (enabled) "#174D42" else "#29415E", 30)
     }
 
