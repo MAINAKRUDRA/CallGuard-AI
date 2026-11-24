@@ -52,11 +52,6 @@ class MainActivity : ComponentActivity() {
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus()
     }
-    private val contactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) launchContactPicker()
-        else showStatus("Contacts permission was not granted. You can still enter a phone number manually.")
-    }
-
     private val contactPicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val contactUri = result.data?.data
@@ -231,9 +226,9 @@ class MainActivity : ComponentActivity() {
         importSummary = label("No contact selected yet.", "#147A48", 12, true)
         contactsCard.addView(importSummary, matchWrap().apply { topMargin = dp(10) })
         contactsCard.addView(actionButton("Select contact and add to VIP", true) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                launchContactPicker()
-            } else contactsPermission.launch(Manifest.permission.READ_CONTACTS)
+            // ACTION_PICK grants temporary access to the one selected phone row.
+            // Broad READ_CONTACTS access is requested separately only for call screening.
+            launchContactPicker()
         }, matchWrap().apply { topMargin = dp(12) })
         content.addView(contactsCard, matchWrap().apply { topMargin = dp(10) })
 
@@ -273,6 +268,7 @@ class MainActivity : ComponentActivity() {
         val rulesCard = card()
         rulesView = label("Loading your encrypted rules…", "#334155", 13, false)
         rulesView.setTextIsSelectable(true)
+        rulesView.setOnClickListener { showRuleManagementDialog() }
         rulesCard.addView(rulesView, matchWrap())
         content.addView(rulesCard, matchWrap().apply { topMargin = dp(10) })
 
@@ -367,7 +363,7 @@ class MainActivity : ComponentActivity() {
                 })
                 append("\n\nBLOCKED  ·  ${block.size}\n")
                 append(if (block.isEmpty()) "No blocked numbers." else block.joinToString("\n") { "✕  ${it}" })
-                append("\n\nSelect a number above to remove or unblock it.")
+                append("\n\nTap here to manage or remove a rule.")
             }
         } catch (error: RuntimeException) {
             rulesView.text = "Encrypted rules could not be opened. Do not clear app data; investigate Android Keystore state."
@@ -383,6 +379,39 @@ class MainActivity : ComponentActivity() {
             val whenText = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(event.timestamp))
             "${event.action.uppercase()}  ·  ${event.number}\n${whenText}\n${event.reason}"
         }
+    }
+
+    private fun showRuleManagementDialog() {
+        val rules = SecureRuleStore(this)
+        val allow = rules.allowed().sorted()
+        val block = rules.blocked().sorted()
+        val entries = mutableListOf<Pair<String, () -> Unit>>()
+        allow.forEach { number ->
+            val name = ContactImporter.displayName(this, number)
+            entries += ("Remove VIP: " + (name?.let { "$it · " } ?: "") + number) to {
+                CallGuardPolicy.removeAllow(this, number)
+                getSharedPreferences("callguard_imported_contact_labels", Context.MODE_PRIVATE)
+                    .edit().remove(number).apply()
+                refreshScreen()
+                showStatus("VIP number removed.")
+            }
+        }
+        block.forEach { number ->
+            entries += "Unblock: $number" to {
+                CallGuardPolicy.removeBlock(this, number)
+                refreshScreen()
+                showStatus("Blocked number removed from your block-list.")
+            }
+        }
+        if (entries.isEmpty()) {
+            showStatus("There are no saved rules to manage.")
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Manage saved rules")
+            .setItems(entries.map { it.first }.toTypedArray()) { _, which -> entries[which].second() }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun launchContactPicker() {
