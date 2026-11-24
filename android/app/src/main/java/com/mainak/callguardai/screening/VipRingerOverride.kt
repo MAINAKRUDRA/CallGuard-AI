@@ -61,8 +61,10 @@ object VipRingerOverride {
 
         val needsRingerChange = currentMode == AudioManager.RINGER_MODE_SILENT ||
             currentMode == AudioManager.RINGER_MODE_VIBRATE
-        val needsDndChange = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            currentFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        val knownDndFilter = currentFilter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+            currentFilter == NotificationManager.INTERRUPTION_FILTER_NONE ||
+            currentFilter == NotificationManager.INTERRUPTION_FILTER_ALARMS
+        val needsDndChange = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && knownDndFilter
 
         if (!needsRingerChange && !needsDndChange) return false
 
