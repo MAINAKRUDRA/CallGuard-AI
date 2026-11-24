@@ -99,20 +99,25 @@ class CallEventStore(context: Context) : SQLiteOpenHelper(context.applicationCon
     }
 
     private fun encryptExistingRows(db: SQLiteDatabase) {
+        val rows = mutableListOf<Pair<Long, Triple<String, String, String>>>()
         db.query(
             "call_events",
             arrayOf("id", "number", "action", "reason"),
             null, null, null, null, null
         ).use { cursor ->
             while (cursor.moveToNext()) {
-                val id = cursor.getLong(0)
-                val values = ContentValues().apply {
-                    put("number", encryptIfNeeded(cursor.getString(1)))
-                    put("action", encryptIfNeeded(cursor.getString(2)))
-                    put("reason", encryptIfNeeded(cursor.getString(3)))
-                }
-                db.update("call_events", values, "id = ?", arrayOf(id.toString()))
+                rows += cursor.getLong(0) to Triple(
+                    cursor.getString(1), cursor.getString(2), cursor.getString(3)
+                )
             }
+        }
+        rows.forEach { (id, fields) ->
+            val values = ContentValues().apply {
+                put("number", encryptIfNeeded(fields.first))
+                put("action", encryptIfNeeded(fields.second))
+                put("reason", encryptIfNeeded(fields.third))
+            }
+            db.update("call_events", values, "id = ?", arrayOf(id.toString()))
         }
     }
 
