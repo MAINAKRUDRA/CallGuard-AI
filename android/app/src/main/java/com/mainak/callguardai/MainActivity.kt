@@ -540,13 +540,23 @@ class MainActivity : FragmentActivity() {
         }
 
         val store = CallEventStore(this)
-        val events = try { store.latest(30) } finally { store.close() }
-        activityCount.text = events.size.toString()
-        historyView.text = if (events.isEmpty()) {
-            "No screening events recorded yet. Activity appears here after the screening role is enabled and calls arrive."
-        } else events.joinToString("\n\n────────────────────\n\n") { event ->
-            val whenText = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(event.timestamp))
-            "${event.action.uppercase()}  ·  ${event.number}\n${whenText}\n${event.reason}"
+        val historyResult = try {
+            runCatching { store.latest(30) }
+        } finally {
+            store.close()
+        }
+        historyResult.onSuccess { events ->
+            activityCount.text = events.size.toString()
+            historyView.text = if (events.isEmpty()) {
+                "No screening events recorded yet. Activity appears here after the screening role is enabled and calls arrive."
+            } else events.joinToString("\n\n────────────────────\n\n") { event ->
+                val whenText = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(event.timestamp))
+                "${event.action.uppercase()}  ·  ${event.number}\n${whenText}\n${event.reason}"
+            }
+        }.onFailure { error ->
+            activityCount.text = "—"
+            historyView.text = "Call history could not be decrypted. Your stored records have been preserved; do not clear app data or reinstall. Contact support to recover access."
+            showStatus("Call-history storage error: ${error.message ?: "Android Keystore unavailable"}")
         }
     }
 
