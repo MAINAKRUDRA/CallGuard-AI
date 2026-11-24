@@ -76,6 +76,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+            val telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+            if (telephony.callState == TelephonyManager.CALL_STATE_IDLE) {
+                VipRingerOverride.restoreOriginalMode(this)
+            }
+        }
         if (::status.isInitialized) refreshScreen()
     }
 
@@ -366,6 +372,9 @@ class MainActivity : ComponentActivity() {
 
     private fun syncVipRingSwitch() {
         if (!::vipRingSwitch.isInitialized) return
+        if (VipRingerOverride.isEnabled(this) && !VipRingerOverride.hasRequiredAccess(this)) {
+            VipRingerOverride.setEnabled(this, false)
+        }
         vipRingSwitch.setOnCheckedChangeListener(null)
         vipRingSwitch.isChecked = VipRingerOverride.isEnabled(this)
         vipRingSwitch.setOnCheckedChangeListener { _, checked ->
