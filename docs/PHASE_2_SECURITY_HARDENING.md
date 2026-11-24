@@ -41,14 +41,14 @@ Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007
 - [x] Missing Keystore keys are not recreated during decryption; history access reports an error and preserves stored ciphertext. UI displays a recovery warning instead of crashing.
 - [ ] Review Android backup/device-transfer behavior so encrypted data is not restored without its Keystore key.
 
-Implementation and migration instrumentation test are committed; CI and emulator execution are still pending.
+Implementation and migration instrumentation test are committed. Unit tests and debug APK build passed on CI run 45486263741; Android API 35 emulator instrumentation/smoke test was still running at last check.
 - [x] Add instrumentation coverage for the 1,000-event cap and clear-history behavior.
 - [x] Retain the existing 90-day retention regression test.
 
 ### 2B — Screening reliability
 - [x] Add unit tests for explicit VIP allow, allow-over-block precedence, explicit block, unknown caller safe-allow, and missing/blank caller ID safe-allow.
-- [ ] Add tests for duplicate, restricted, malformed, and unavailable caller presentations.
-- [ ] Verify callback deadline behavior and safe allow fallback under database/Keystore failures.
+- [x] Add tests for duplicate, restricted, malformed, private, and unavailable caller presentations; invalid presentations canonicalize to no caller number and are safe-allowed.
+- [x] Bound rule evaluation to 1.5 seconds on a dedicated single-worker executor; timeout, executor saturation, interruption, and evaluation errors use an explicit safe-allow decision.
 - [ ] Verify repeated calls and call-end restoration do not leave the ringer changed.
 - [ ] Add OEM-specific physical-device test records; emulator success alone is not proof of cellular call behavior.
 
@@ -64,5 +64,5 @@ Implementation and migration instrumentation test are committed; CI and emulator
 
 - Allow/block rules are AES-256-GCM encrypted with a non-exportable Android Keystore key.
 - Call history currently stores masked caller numbers, has 90-day retention, and is capped at 1,000 rows.
-- The SQLite history database is currently app-private but not encrypted at rest. Database encryption is a planned Phase 2 item, not a completed feature.
+- Call-history fields are encrypted at rest with AES-256-GCM using a non-exportable Android Keystore key; schema v2-to-v3 migration and key-loss handling are implemented but still require emulator and device validation.
 - The current website workflow publishes on qualifying pushes to `main`; all Phase 2 work must remain on this branch until release approval.
