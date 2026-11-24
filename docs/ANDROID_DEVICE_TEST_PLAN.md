@@ -40,7 +40,7 @@ Open CallGuard AI and grant the Android **Call Screening** role when prompted. G
 | DEV-13 | Rule persistence | Add test rule; force-stop and reopen app | Encrypted rule remains available |
 | DEV-14 | Upgrade migration | Install an older build with test rules, then update to this build | Existing rules migrate and remain usable |
 | DEV-15 | No screening role | Remove role in Android settings and reopen app | UI reports role not enabled; no false success state |
-| DEV-16 | VIP rings in Silent | Enable VIP ring override and grant both requested permissions; set phone to Silent; call from an explicit VIP number | Phone temporarily rings; original Silent mode is restored when the call ends |
+| DEV-16 | VIP rings in Silent | Enable VIP ring override and grant Contacts, Phone state, and Notification Policy Access; set phone to Silent; call from an explicit VIP number saved in contacts | Phone temporarily rings; original Silent mode is restored when the call ends |
 | DEV-17 | VIP rings in Vibrate | Repeat DEV-16 with Vibrate mode | Phone temporarily rings; original Vibrate mode is restored when the call ends |
 | DEV-18 | DND remains respected | Enable Do Not Disturb and call from an explicit VIP number | CallGuard does not change ringer mode or bypass DND |
 | DEV-19 | Permission denial | Deny Phone state permission or Notification Policy Access during setup | VIP ring override remains off; normal call screening continues |
