@@ -17,13 +17,14 @@ permissions:
   contents: write
 
 concurrency:
-  group: publish-website-apk
-  cancel-in-progress: false
+  group: publish-website-apk-v2
+  cancel-in-progress: true
 
 jobs:
   emulator-smoke:
     name: Android API 35 emulator smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,7 +55,7 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 1200
+          emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
           disable-animations: true
           cores: 2
