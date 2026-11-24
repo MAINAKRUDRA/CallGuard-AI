@@ -24,7 +24,7 @@ jobs:
   emulator-smoke:
     name: Android API 35 emulator smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,11 +55,11 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 300
+          emulator-boot-timeout: 1200
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
           disable-animations: true
-          cores: 4
-          ram-size: 3072
+          cores: 2
+          ram-size: 2048
           heap-size: 512
           script: |
             timeout 15m gradle :android:app:connectedDebugAndroidTest
