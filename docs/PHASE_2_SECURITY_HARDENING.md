@@ -35,11 +35,13 @@ Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007
 
 
 ### 2A — Data protection and lifecycle
-- [ ] Review the current history schema and confirm that only masked numbers are persisted.
-- [ ] Design authenticated encryption for history fields or the database using an Android Keystore key.
-- [ ] Add a forward-only migration from existing schema version 2 without losing existing user history.
-- [ ] Define behavior when the Keystore key is invalidated: preserve evidence, report a recoverable storage error, and never silently reset data.
+- [x] Confirm screening history writes masked caller numbers; history API persists only the masked value supplied by the screening service.
+- [x] Encrypt caller number, action, and reason fields with AES-256-GCM using a non-exportable Android Keystore key.
+- [x] Add a forward-only schema v2 to v3 migration that copies and encrypts rows before dropping the legacy plaintext table; migration failure leaves the transaction uncommitted.
+- [x] Missing Keystore keys are not recreated during decryption; history access reports an error and preserves stored ciphertext. UI displays a recovery warning instead of crashing.
 - [ ] Review Android backup/device-transfer behavior so encrypted data is not restored without its Keystore key.
+
+Implementation and migration instrumentation test are committed; CI and emulator execution are still pending.
 - [x] Add instrumentation coverage for the 1,000-event cap and clear-history behavior.
 - [x] Retain the existing 90-day retention regression test.
 
