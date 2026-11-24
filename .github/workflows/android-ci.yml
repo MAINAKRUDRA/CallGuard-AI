@@ -70,6 +70,12 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_2
+          emulator-boot-timeout: 1200
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
+          disable-animations: true
+          cores: 2
+          ram-size: 2048
+          heap-size: 512
           script: |
             gradle :android:app:connectedDebugAndroidTest
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
