@@ -11,6 +11,21 @@ This phase is development-only until the owner explicitly authorizes a release.
 - Do not add SMS, call-log, microphone, overlay, or broad storage permissions without a separately reviewed requirement.
 - Never log full caller numbers, contact names, tokens, or raw personal data.
 
+## Uploaded APK audit — 2026-11-25
+
+Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007ae26e6c4964455cd2c97e0c68c1fb69675a4e1c6ca814a2991`).
+
+- Package: `com.mainak.callguardai`.
+- Version: `0.3.124` (`versionCode=124`); min SDK 26; target SDK 35.
+- Manifest permissions: `READ_CONTACTS`, `READ_PHONE_STATE`, `MODIFY_AUDIO_SETTINGS`, and the generated non-exported-receiver permission. It does not contain `ACCESS_NOTIFICATION_POLICY`, which is present in the current Phase 2 source manifest.
+- Application manifest marks `debuggable=true` and `allowBackup=false`.
+- APK v2 signing block is present; signer certificate is the generic Android Debug certificate, not a production release certificate.
+- DEX files do not contain AndroidX Biometric / `BiometricPrompt` references or the new app-lock preference key.
+- Website metadata currently identifies version `0.3.126` / code 126, so this upload is older than the current website version.
+- The APK does not embed a verifiable Git source commit. Exact source-commit identity cannot be proven from this artifact alone.
+
+**Audit result: NOT RELEASE-READY.** Do not publish this APK. Rebuild from the current source, use the production signing configuration, verify the final manifest/version, and complete CI plus physical-device tests first.
+
 ## Phase 2 work plan
 
 ### 2A — App access security
