@@ -28,6 +28,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - name: Set automatic app version from commit count
         run: echo "CALLGUARD_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
