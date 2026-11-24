@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var ringerStatus: TextView
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        updateRoleStatus(it.resultCode == Activity.RESULT_OK)
+        updateRoleStatus()
     }
     private val contactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) importContactsNow()
@@ -234,7 +234,10 @@ class MainActivity : ComponentActivity() {
         }
         switchRow.addView(vipRingSwitch, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         vipCard.addView(switchRow, matchWrap().apply { topMargin = dp(10) })
-        vipCard.addView(label("Requires Contacts and Phone state permissions plus Android Notification Policy Access. Do Not Disturb is not bypassed. SMS permission is not needed.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
+        vipCard.addView(actionButton("Open Do Not Disturb access settings", false) {
+            openNotificationPolicySettings()
+        }, matchWrap().apply { topMargin = dp(8) })
+        vipCard.addView(label("Grant CallGuard AI access on the Android screen that opens, then return here. Requires Contacts, Phone state and Notification Policy Access. DND itself is never bypassed. SMS permission is not needed.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
         content.addView(vipCard, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Your rules"), matchWrap().apply { topMargin = dp(24) })
@@ -371,10 +374,19 @@ class MainActivity : ComponentActivity() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val dnd = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
             manager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
-        ringerStatus.text = if (dnd) {
-            "Current phone mode: $mode · Do Not Disturb is active"
-        } else {
-            "Current phone mode: $mode"
+        val contactsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        val phoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        val policyGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || manager.isNotificationPolicyAccessGranted
+        val access = if (contactsGranted && phoneGranted && policyGranted) "Required access: granted" else {
+            "Access missing: " + listOfNotNull(
+                if (!contactsGranted) "Contacts" else null,
+                if (!phoneGranted) "Phone state" else null,
+                if (!policyGranted) "Do Not Disturb access" else null
+            ).joinToString(", ")
+        }
+        ringerStatus.text = buildString {
+            append("Phone mode: $mode · $access")
+            if (dnd) append(" · Do Not Disturb is active; VIP override will not bypass it")
         }
     }
 
@@ -399,9 +411,26 @@ class MainActivity : ComponentActivity() {
     private fun requestNotificationPolicyAccess() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !manager.isNotificationPolicyAccessGranted) {
-            policyAccessRequest.launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+            openNotificationPolicySettings()
         } else {
             completeVipRingSetup()
+        }
+    }
+
+    private fun openNotificationPolicySettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            completeVipRingSetup()
+            return
+        }
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (manager.isNotificationPolicyAccessGranted) {
+            completeVipRingSetup()
+            return
+        }
+        try {
+            policyAccessRequest.launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        } catch (_: Exception) {
+            showStatus("Android could not open Do Not Disturb access settings. Open Settings → Apps → Special app access → Do Not Disturb access, then allow CallGuard AI.")
         }
     }
 
