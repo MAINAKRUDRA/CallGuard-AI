@@ -166,10 +166,8 @@ class MainActivity : ComponentActivity() {
         hero.addView(actionButton("Set as caller ID & spam app", true) { requestScreeningRole() }.apply {
             setTextColor(Color.rgb(20, 36, 58))
         }, matchWrap().apply { topMargin = dp(14) })
-        hero.addView(actionButton("Open Android default-app settings", false) {
-            openDefaultCallerIdSettings()
-        }, matchWrap().apply { topMargin = dp(8) })
-        hero.addView(label("CallGuard must hold Android's Call Screening role (shown as Caller ID & spam app on many phones). This is separate from the default Phone/Dialer app. Display-over-other-apps permission is not required for Android call screening.", "#D6E1EF", 12, false), matchWrap().apply { topMargin = dp(8) })
+        hero.addView(label("CallGuard controls and preferences stay inside this app. Android itself displays a system-owned confirmation when you grant the Call Screening role; this is required by Android and cannot be replaced with an in-app switch.", "#D6E1EF", 12, false), matchWrap().apply { topMargin = dp(8) })
+        hero.addView(label("CallGuard does not take over your default Phone/Dialer app or draw over other apps. Android permits only one app to hold the Call Screening role at a time. Truecaller can remain your dialer, but it cannot share that same screening role with CallGuard.", "#D6E1EF", 12, false), matchWrap().apply { topMargin = dp(8) })
         content.addView(hero, matchWrap())
 
         status = label("Checking call screening status…", "#334155", 13, true).apply {
@@ -278,7 +276,7 @@ class MainActivity : ComponentActivity() {
         rulesCard.addView(rulesView, matchWrap())
         content.addView(rulesCard, matchWrap().apply { topMargin = dp(10) })
 
-        content.addView(sectionTitle("Phone settings"), matchWrap().apply { topMargin = dp(24) })
+        content.addView(sectionTitle("App preferences"), matchWrap().apply { topMargin = dp(24) })
         val settingsCard = card()
         settingsCard.addView(label("Default country / region", "#172B45", 16, true))
         settingsCard.addView(label("Used to normalize local phone numbers. Enter a two-letter country code.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
@@ -505,7 +503,7 @@ class MainActivity : ComponentActivity() {
         try {
             policyAccessRequest.launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
         } catch (_: Exception) {
-            showStatus("Android could not open Do Not Disturb access settings. Open Settings → Apps → Special app access → Do Not Disturb access, then allow CallGuard AI.")
+            showStatus("Android must show its system Do Not Disturb access page for your approval. Return to CallGuard AI after granting access.")
         }
     }
 
@@ -536,14 +534,6 @@ class MainActivity : ComponentActivity() {
                 VipRingerOverride.setEnabled(this, false)
                 showStatus("VIP ring override is off.")
             } else startVipRingSetup()
-        }
-    }
-
-    private fun openDefaultCallerIdSettings() {
-        try {
-            startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
-        } catch (_: Exception) {
-            showStatus("Open Android Settings → Apps → Default apps → Caller ID & spam app, then select CallGuard AI.")
         }
     }
 
