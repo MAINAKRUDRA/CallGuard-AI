@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.app.NotificationManager
 import android.os.ParcelFileDescriptor
+import android.provider.Settings
 import androidx.test.core.app.ActivityScenario
 import androidx.lifecycle.Lifecycle
 import androidx.test.espresso.Espresso.onView
@@ -132,6 +133,24 @@ class LifecycleAndRecoveryInstrumentedTest {
         } finally {
             rules.removeAllow(number)
             security.edit().putBoolean("biometric_lock_enabled", originalLock).commit()
+        }
+    }
+
+    @Test
+    fun dashboardControlsRemainReachableAtTwoTimesFontScale() {
+        val originalScale = Settings.System.getFloat(
+            context.contentResolver,
+            Settings.System.FONT_SCALE,
+            1.0f
+        )
+        try {
+            shell("settings put system font_scale 2.0")
+            ActivityScenario.launch(MainActivity::class.java).use {
+                onView(withText("Allow / VIP")).perform(scrollTo()).check(matches(isDisplayed()))
+                onView(withText("Clear activity history")).perform(scrollTo()).check(matches(isDisplayed()))
+            }
+        } finally {
+            shell("settings put system font_scale $originalScale")
         }
     }
 
