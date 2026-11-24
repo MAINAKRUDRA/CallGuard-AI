@@ -119,7 +119,11 @@ object VipRingerOverride {
 
             // Restore DND only if it still has the temporary ALL value set by us.
             // If the user changed DND during the call, respect that newer choice.
-            if (changedFilter && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            val restorableFilter = originalFilter == NotificationManager.INTERRUPTION_FILTER_ALL ||
+                originalFilter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+                originalFilter == NotificationManager.INTERRUPTION_FILTER_NONE ||
+                originalFilter == NotificationManager.INTERRUPTION_FILTER_ALARMS
+            if (changedFilter && restorableFilter && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
                 notificationManager.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL
             ) {
                 notificationManager.setInterruptionFilter(originalFilter)
