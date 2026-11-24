@@ -24,7 +24,7 @@ jobs:
   emulator-smoke:
     name: Android API 35 emulator smoke test
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,23 +55,31 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_2
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 300
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
           disable-animations: true
-          cores: 2
-          ram-size: 2048
+          cores: 4
+          ram-size: 3072
           heap-size: 512
           script: |
-            gradle :android:app:connectedDebugAndroidTest
+            timeout 15m gradle :android:app:connectedDebugAndroidTest
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.mainak.callguardai
             adb shell monkey -p com.mainak.callguardai 1
             sleep 5
             adb shell dumpsys activity activities | grep -q com.mainak.callguardai
 
+      - name: Capture emulator diagnostics on failure
+        if: failure()
+        run: |
+          adb devices -l || true
+          adb shell getprop sys.boot_completed || true
+          adb logcat -d -t 1500 || true
+
   build-and-publish:
     needs: emulator-smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
