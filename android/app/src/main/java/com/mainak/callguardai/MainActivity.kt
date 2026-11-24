@@ -445,7 +445,7 @@ class MainActivity : FragmentActivity() {
             authenticateBiometric(
                 "Unlock CallGuard AI",
                 "Authenticate with an enrolled strong biometric.",
-                onSuccess = { buildScreen(); refreshScreen() },
+                onSuccess = { appUnlocked = true; buildScreen(); refreshScreen() },
                 onFailure = { message.text = "Authentication required. Tap below to try again." }
             )
         }
