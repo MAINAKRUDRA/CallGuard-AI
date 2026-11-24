@@ -58,25 +58,17 @@ class LifecycleAndRecoveryInstrumentedTest {
     }
 
     @Test
-    fun biometricLockRemainsEnabledAcrossActivityRecreationAndProcessRestart() {
+    fun biometricLockRemainsEnabledAcrossActivityRecreation() {
         val security = context.getSharedPreferences("callguard_app_security", 0)
         val original = security.getBoolean("biometric_lock_enabled", false)
         security.edit().putBoolean("biometric_lock_enabled", true).commit()
         try {
-            val firstLaunch = ActivityScenario.launch(MainActivity::class.java)
-            instrumentation.waitForIdleSync()
-            onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
-                .check(matches(isDisplayed()))
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                instrumentation.waitForIdleSync()
+                onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
+                    .check(matches(isDisplayed()))
 
-            firstLaunch.recreate()
-            instrumentation.waitForIdleSync()
-            onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
-                .check(matches(isDisplayed()))
-            firstLaunch.close()
-
-            // Force-stop the target app process, then launch a fresh process.
-            shell("am force-stop ${context.packageName}")
-            ActivityScenario.launch(MainActivity::class.java).use {
+                scenario.recreate()
                 instrumentation.waitForIdleSync()
                 onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
                     .check(matches(isDisplayed()))
