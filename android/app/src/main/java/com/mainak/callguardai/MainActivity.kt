@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var roleBadge: TextView
     private lateinit var importSummary: TextView
     private lateinit var vipRingSwitch: Switch
+    private lateinit var ringerStatus: TextView
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus(it.resultCode == Activity.RESULT_OK)
@@ -194,6 +195,11 @@ class MainActivity : ComponentActivity() {
         val vipCard = card()
         vipCard.addView(label("Let VIP callers ring through Silent / Vibrate", "#172B45", 16, true))
         vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches the ringer to Normal and restores your previous Silent or Vibrate mode when the call ends.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        ringerStatus = label("Current phone mode: checking…", "#245A9B", 12, true).apply {
+            background = rounded("#EAF1FC", 10)
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+        }
+        vipCard.addView(ringerStatus, matchWrap().apply { topMargin = dp(10) })
         val switchRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -297,6 +303,7 @@ class MainActivity : ComponentActivity() {
         if (!::status.isInitialized) return
         updateRoleStatus()
         if (::vipRingSwitch.isInitialized) syncVipRingSwitch()
+        if (::ringerStatus.isInitialized) updateRingerStatus()
         try {
             val rules = SecureRuleStore(this)
             val allow = rules.allowed().sorted()
@@ -334,6 +341,23 @@ class MainActivity : ComponentActivity() {
             refreshScreen()
         } catch (error: RuntimeException) {
             showStatus("Contact import failed: " + (error.message ?: "unknown error"))
+        }
+    }
+
+    private fun updateRingerStatus() {
+        val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val mode = when (audio.ringerMode) {
+            android.media.AudioManager.RINGER_MODE_SILENT -> "Silent"
+            android.media.AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+            else -> "Normal / Ring"
+        }
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val dnd = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            manager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        ringerStatus.text = if (dnd) {
+            "Current phone mode: $mode · Do Not Disturb is active"
+        } else {
+            "Current phone mode: $mode"
         }
     }
 
