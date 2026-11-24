@@ -332,7 +332,10 @@ class MainActivity : ComponentActivity() {
             blockCount.text = block.size.toString()
             rulesView.text = buildString {
                 append("VIP / ALLOWED  ·  ${allow.size}\n")
-                append(if (allow.isEmpty()) "No VIP numbers yet." else allow.joinToString("\n") { "✓  ${it}" })
+                append(if (allow.isEmpty()) "No VIP numbers yet." else allow.joinToString("\n") {
+                    val contactName = ContactImporter.displayName(this@MainActivity, it)
+                    if (contactName.isNullOrBlank()) "✓  $it" else "✓  $contactName  ·  $it"
+                })
                 append("\n\nBLOCKED  ·  ${block.size}\n")
                 append(if (block.isEmpty()) "No blocked numbers." else block.joinToString("\n") { "✕  ${it}" })
                 append("\n\nSelect a number above to remove or unblock it.")
