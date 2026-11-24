@@ -197,6 +197,7 @@ class MainActivity : FragmentActivity() {
         content.addView(hero, matchWrap())
 
         status = label("Checking call screening status…", "#334155", 13, true).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
             background = rounded("#FFFFFF", 16, "#DCE7EF")
             setPadding(dp(14), dp(13), dp(14), dp(13))
         }
@@ -213,6 +214,7 @@ class MainActivity : FragmentActivity() {
         content.addView(label("Add a number once, then choose what CallGuard should do with it.", "#64748B", 13, false), matchWrap())
         numberInput = EditText(this).apply {
             hint = "+91 98765 43210"
+            contentDescription = "Phone number to add to the allow or block list"
             inputType = android.text.InputType.TYPE_CLASS_PHONE
             setSingleLine(true)
             textSize = 16f
@@ -296,7 +298,11 @@ class MainActivity : FragmentActivity() {
 
         content.addView(sectionTitle("Your rules"), matchWrap().apply { topMargin = dp(24) })
         val rulesCard = card()
-        rulesView = label("Loading your encrypted rules…", "#334155", 13, false)
+        rulesView = label("Loading your encrypted rules…", "#334155", 13, false).apply {
+            minHeight = dp(48)
+            contentDescription = "Saved allow and block rules. Activate to manage rules."
+            isFocusable = true
+        }
         rulesView.setTextIsSelectable(true)
         rulesView.setOnClickListener { showRuleManagementDialog() }
         rulesCard.addView(rulesView, matchWrap())
@@ -308,6 +314,7 @@ class MainActivity : FragmentActivity() {
         settingsCard.addView(label("Used to normalize local phone numbers. Enter a two-letter country code.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
         regionInput = EditText(this).apply {
             hint = "IN"
+            contentDescription = "Two-letter default country or region code for phone number formatting"
             setSingleLine(true)
             textSize = 16f
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
@@ -357,7 +364,9 @@ class MainActivity : FragmentActivity() {
 
         content.addView(sectionTitle("Recent screening activity"), matchWrap().apply { topMargin = dp(24) })
         val historyCard = card()
-        historyView = label("No screening events recorded yet.", "#334155", 13, false)
+        historyView = label("No screening events recorded yet.", "#334155", 13, false).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
         historyCard.addView(historyView, matchWrap())
         content.addView(historyCard, matchWrap().apply { topMargin = dp(10) })
         content.addView(actionButton("Clear activity history", false) {
@@ -763,6 +772,7 @@ class MainActivity : FragmentActivity() {
 
     private fun sectionTitle(value: String) = label(value, "#172B45", 19, true).apply {
         setPadding(0, 0, 0, dp(2))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isAccessibilityHeading = true
     }
 
     private fun label(value: String, color: String, size: Int, bold: Boolean) = TextView(this).apply {
