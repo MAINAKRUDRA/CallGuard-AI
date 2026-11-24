@@ -267,9 +267,6 @@ class MainActivity : ComponentActivity() {
         }
         switchRow.addView(vipRingSwitch, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         vipCard.addView(switchRow, matchWrap().apply { topMargin = dp(10) })
-        vipCard.addView(actionButton("Open Do Not Disturb access settings", false) {
-            openNotificationPolicySettings()
-        }, matchWrap().apply { topMargin = dp(8) })
         vipCard.addView(label("Grant CallGuard AI access on the Android screen that opens, then return here. Requires Contacts, Phone state and Notification Policy Access. When this feature is enabled, DND may be paused temporarily for a VIP call and then restored. SMS and overlay permissions are not needed.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
         content.addView(vipCard, matchWrap().apply { topMargin = dp(10) })
 
