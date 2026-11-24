@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.mainak.callguardai.contacts.ContactImporter
 import com.mainak.callguardai.data.CallEventStore
+import com.mainak.callguardai.data.SecureRuleStore
 import com.mainak.callguardai.screening.CallGuardPolicy
 import java.text.DateFormat
 import java.util.Date
@@ -163,9 +164,9 @@ class MainActivity : ComponentActivity() {
     private fun refreshScreen() {
         if (!::status.isInitialized) return
         updateRoleStatus()
-        val prefs = getSharedPreferences("callguard_rules", Context.MODE_PRIVATE)
-        val allow = prefs.getStringSet("allow_numbers", emptySet()).orEmpty().sorted()
-        val block = prefs.getStringSet("block_numbers", emptySet()).orEmpty().sorted()
+        val rules = SecureRuleStore(this)
+        val allow = rules.allowed().sorted()
+        val block = rules.blocked().sorted()
         rulesView.text = buildString {
             append("VIP / allowed numbers (" + allow.size + ")\n")
             append(if (allow.isEmpty()) "  None\n" else allow.joinToString("\n") { "  + " + it } + "\n")
