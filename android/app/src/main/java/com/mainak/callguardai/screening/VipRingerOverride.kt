@@ -10,8 +10,9 @@ import androidx.core.content.ContextCompat
 
 /**
  * Opt-in VIP override. Temporarily changes Silent/Vibrate to Ring and pauses
- * the current DND interruption filter for a VIP call, then restores the
- * saved settings when the call ends. Android/OEM policy can still restrict it.
+ * the current DND interruption filter for a VIP call, then restores settings
+ * only when they still appear to be in the temporary state set by CallGuard.
+ * Android/OEM policy can still restrict it.
  */
 object VipRingerOverride {
     private const val PREFS = "callguard_vip_ringer"
@@ -43,10 +44,6 @@ object VipRingerOverride {
         return contactsPermission && phonePermission && policyAccess
     }
 
-    /**
-     * Called only for a caller that matched an explicit VIP allow rule.
-     * Returns true when a temporary phone-mode change was applied.
-     */
     @Synchronized
     fun onVipIncomingCall(context: Context): Boolean {
         if (!isEnabled(context) || !hasRequiredAccess(context)) return false
@@ -80,8 +77,6 @@ object VipRingerOverride {
         }
 
         return try {
-            // DND is changed only after the user explicitly enables VIP override
-            // and grants Android's Notification Policy Access.
             if (needsDndChange && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
             }
@@ -119,8 +114,6 @@ object VipRingerOverride {
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Restore DND only if it still has the temporary ALL value set by us.
-            // If the user changed DND during the call, respect that newer choice.
             val restorableFilter = originalFilter == NotificationManager.INTERRUPTION_FILTER_ALL ||
                 originalFilter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
                 originalFilter == NotificationManager.INTERRUPTION_FILTER_NONE ||
@@ -130,9 +123,12 @@ object VipRingerOverride {
             ) {
                 notificationManager.setInterruptionFilter(originalFilter)
             }
-            audio.ringerMode = originalMode
+
+            // Do not overwrite a newer ringer choice made by the user during the call.
+            if (RingerRestorePolicy.shouldRestoreOriginalMode(audio.ringerMode)) {
+                audio.ringerMode = originalMode
+            }
         } catch (_: SecurityException) {
-            // Keep the pending snapshot; the app retries on its next foreground/resume.
             return
         } catch (_: RuntimeException) {
             return
@@ -145,4 +141,10 @@ object VipRingerOverride {
             .remove(KEY_CHANGED_FILTER)
             .commit()
     }
+}
+
+/** Pure policy so user changes made during a call are not overwritten at call end. */
+internal object RingerRestorePolicy {
+    fun shouldRestoreOriginalMode(currentMode: Int): Boolean =
+        currentMode == AudioManager.RINGER_MODE_NORMAL
 }
