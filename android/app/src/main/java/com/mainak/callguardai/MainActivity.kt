@@ -180,7 +180,7 @@ class MainActivity : FragmentActivity() {
             setPadding(dp(22), dp(24), dp(22), dp(22))
         }
         hero.addView(label("✦  CALLGUARD AI  /  SMART CALL PROTECTION", "#9DE9DF", 11, true))
-        hero.addView(label("Your calls.\nYour rules.", "#FFFFFF", 32, true).apply {
+        hero.addView(label("Your calls.\nYour rules.", "#FFFFFF", if (compactWidth) 28 else 32, true).apply {
             setPadding(0, dp(12), 0, dp(8))
         })
         hero.addView(label("A private, allow-first screening dashboard. Unknown callers are allowed unless you explicitly block them.", "#D6E1EF", 14, false))
