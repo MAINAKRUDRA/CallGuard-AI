@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var importSummary: TextView
     private lateinit var vipRingSwitch: Switch
     private lateinit var ringerStatus: TextView
+    private lateinit var dndAccessStatus: TextView
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus()
@@ -241,6 +242,14 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(10), dp(9), dp(10), dp(9))
         }
         vipCard.addView(ringerStatus, matchWrap().apply { topMargin = dp(10) })
+        dndAccessStatus = label("Do Not Disturb access: checking…", "#8A5A18", 13, true).apply {
+            background = rounded("#FFF5E5", 10)
+            setPadding(dp(12), dp(11), dp(12), dp(11))
+        }
+        vipCard.addView(dndAccessStatus, matchWrap().apply { topMargin = dp(10) })
+        vipCard.addView(actionButton("Grant / manage DND access", true) {
+            openNotificationPolicySettings()
+        }, matchWrap().apply { topMargin = dp(8) })
         val switchRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -437,6 +446,15 @@ class MainActivity : ComponentActivity() {
         val contactsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         val phoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
         val policyGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || manager.isNotificationPolicyAccessGranted
+        if (::dndAccessStatus.isInitialized) {
+            dndAccessStatus.text = if (policyGranted) {
+                "✓ Do Not Disturb access: GRANTED\\nCallGuard is authorized to temporarily change DND for an explicitly saved VIP call."
+            } else {
+                "⚠ Do Not Disturb access: NOT GRANTED\\nTap “Grant / manage DND access” below, enable CallGuard AI in Android settings, then return to this app."
+            }
+            dndAccessStatus.setTextColor(Color.rgb(if (policyGranted) 20 else 138, if (policyGranted) 122 else 90, if (policyGranted) 72 else 24))
+            dndAccessStatus.background = rounded(if (policyGranted) "#E8F5EE" else "#FFF5E5", 10)
+        }
         val access = if (contactsGranted && phoneGranted && policyGranted) "Required access: granted" else {
             "Access missing: " + listOfNotNull(
                 if (!contactsGranted) "Contacts" else null,
