@@ -19,7 +19,7 @@ adb install -r app-debug.apk
 adb shell monkey -p com.mainak.callguardai 1
 ```
 
-Open CallGuard AI and grant the Android **Call Screening** role when prompted. Grant Contacts permission only if testing contact import. Grant Phone state and Notification Policy Access only when testing the optional VIP ring override.
+Open CallGuard AI and grant the Android **Call Screening** role when prompted. Grant Contacts permission only if testing contact import or VIP ring override. Grant Phone state and Notification Policy Access only when testing the optional VIP ring override.
 
 ## Test cases
 
