@@ -3,6 +3,7 @@ package com.mainak.callguardai.data
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mainak.callguardai.screening.PhoneNumberCanonicalizer
+import com.mainak.callguardai.screening.CallGuardPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -37,6 +38,14 @@ class SecureStorageInstrumentedTest {
             PhoneNumberCanonicalizer.canonicalize("9876543210", "IN"),
             PhoneNumberCanonicalizer.canonicalize("+91 98765 43210", "US")
         )
+    }
+
+    @Test fun selectedCountryRegionIsValidatedAndPersists() {
+        context.getSharedPreferences("callguard_settings", 0).edit().clear().commit()
+        assertTrue(CallGuardPolicy.setRegion(context, "IN"))
+        assertEquals("IN", CallGuardPolicy.selectedRegion(context))
+        assertFalse(CallGuardPolicy.setRegion(context, "XX"))
+        assertEquals("IN", CallGuardPolicy.selectedRegion(context))
     }
 
     @Test fun callHistoryRetentionDropsExpiredEvents() {
