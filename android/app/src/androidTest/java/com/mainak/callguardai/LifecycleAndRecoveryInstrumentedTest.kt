@@ -123,7 +123,7 @@ class LifecycleAndRecoveryInstrumentedTest {
             }
             instrumentation.waitForIdleSync()
             onView(withText("Manage a phone number")).check(matches(isDisplayed()))
-            onView(withText("Recent screening activity")).check(matches(isDisplayed()))
+            onView(withText("Recent screening activity")).perform(scrollTo()).check(matches(isDisplayed()))
         }
     }
 }
