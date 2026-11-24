@@ -28,6 +28,9 @@ object VipRingerOverride {
     }
 
     fun hasRequiredAccess(context: Context): Boolean {
+        val contactsPermission = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
         val phonePermission = ContextCompat.checkSelfPermission(
             context, Manifest.permission.READ_PHONE_STATE
         ) == PackageManager.PERMISSION_GRANTED
@@ -35,7 +38,7 @@ object VipRingerOverride {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.isNotificationPolicyAccessGranted
         } else true
-        return phonePermission && policyAccess
+        return contactsPermission && phonePermission && policyAccess
     }
 
     fun onVipIncomingCall(context: Context): Boolean {
