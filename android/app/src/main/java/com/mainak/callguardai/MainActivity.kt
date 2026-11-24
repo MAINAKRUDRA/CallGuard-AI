@@ -25,6 +25,8 @@ import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.mainak.callguardai.contacts.ContactImporter
@@ -49,6 +51,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var vipRingSwitch: Switch
     private lateinit var ringerStatus: TextView
     private lateinit var dndAccessStatus: TextView
+    private lateinit var biometricLockSwitch: Switch
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus()
@@ -116,8 +119,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        buildScreen()
-        refreshScreen()
+        if (isBiometricLockEnabled()) {
+            showBiometricGate()
+        } else {
+            buildScreen()
+            refreshScreen()
+        }
     }
 
     override fun onResume() {
@@ -296,6 +303,36 @@ class MainActivity : ComponentActivity() {
                 showStatus("Phone region saved as ${region.trim().uppercase()}.")
             } else showStatus("Enter a supported two-letter country code, such as IN or US.")
         }, matchWrap().apply { topMargin = dp(10) })
+
+        settingsCard.addView(label("Fingerprint app lock", "#172B45", 16, true), matchWrap().apply { topMargin = dp(18) })
+        settingsCard.addView(label("Require Android biometric authentication before opening your CallGuard rules and activity. Fingerprint data stays with Android and is never collected by CallGuard.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
+        biometricLockSwitch = Switch(this).apply {
+            text = "Require fingerprint to open app"
+            textSize = 14f
+            setTextColor(Color.rgb(34, 57, 83))
+            isChecked = isBiometricLockEnabled()
+            setOnCheckedChangeListener { _, enabled ->
+                isEnabled = false
+                authenticateBiometric(
+                    if (enabled) "Enable CallGuard fingerprint lock" else "Disable CallGuard fingerprint lock",
+                    if (enabled) "Confirm your fingerprint to protect this app." else "Confirm your fingerprint to turn off app lock.",
+                    onSuccess = {
+                        setBiometricLockEnabled(enabled)
+                        biometricLockSwitch.isChecked = enabled
+                        biometricLockSwitch.isEnabled = true
+                        showStatus(if (enabled) "Fingerprint app lock enabled." else "Fingerprint app lock disabled.")
+                    },
+                    onFailure = { message ->
+                        biometricLockSwitch.setOnCheckedChangeListener(null)
+                        biometricLockSwitch.isChecked = isBiometricLockEnabled()
+                        biometricLockSwitch.isEnabled = true
+                        biometricLockSwitch.setOnCheckedChangeListener { _, checked -> toggleBiometricLock(checked) }
+                        showStatus(message)
+                    }
+                )
+            }
+        }
+        settingsCard.addView(biometricLockSwitch, matchWrap().apply { topMargin = dp(8) })
         content.addView(settingsCard, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Recent screening activity"), matchWrap().apply { topMargin = dp(24) })
@@ -330,6 +367,110 @@ class MainActivity : ComponentActivity() {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         ))
         setContentView(root)
+    }
+
+    private fun isBiometricLockEnabled(): Boolean =
+        getSharedPreferences("callguard_app_security", Context.MODE_PRIVATE)
+            .getBoolean("biometric_lock_enabled", false)
+
+    private fun setBiometricLockEnabled(enabled: Boolean) {
+        getSharedPreferences("callguard_app_security", Context.MODE_PRIVATE)
+            .edit().putBoolean("biometric_lock_enabled", enabled).commit()
+    }
+
+    private fun toggleBiometricLock(enabled: Boolean) {
+        biometricLockSwitch.isEnabled = false
+        authenticateBiometric(
+            if (enabled) "Enable CallGuard fingerprint lock" else "Disable CallGuard fingerprint lock",
+            "Confirm your fingerprint to update app security.",
+            onSuccess = {
+                setBiometricLockEnabled(enabled)
+                biometricLockSwitch.isChecked = enabled
+                biometricLockSwitch.isEnabled = true
+                showStatus(if (enabled) "Fingerprint app lock enabled." else "Fingerprint app lock disabled.")
+            },
+            onFailure = { message ->
+                biometricLockSwitch.setOnCheckedChangeListener(null)
+                biometricLockSwitch.isChecked = isBiometricLockEnabled()
+                biometricLockSwitch.isEnabled = true
+                biometricLockSwitch.setOnCheckedChangeListener { _, checked -> toggleBiometricLock(checked) }
+                showStatus(message)
+            }
+        )
+    }
+
+    private fun showBiometricGate() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(28), dp(28), dp(28))
+            setBackgroundColor(Color.rgb(10, 28, 48))
+        }
+        val message = label("CALLGUARD AI\n\nApp locked\nAuthenticate with your fingerprint to continue.", "#FFFFFF", 20, true).apply {
+            gravity = Gravity.CENTER
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+        }
+        root.addView(message, matchWrap())
+        root.addView(actionButton("Unlock with fingerprint", true) {
+            authenticateBiometric(
+                "Unlock CallGuard AI",
+                "Authenticate with your enrolled fingerprint.",
+                onSuccess = { buildScreen(); refreshScreen() },
+                onFailure = { message.text = "Authentication required.\n$message" }
+            )
+        }, matchWrap().apply { topMargin = dp(22) })
+        setContentView(root)
+        root.post {
+            authenticateBiometric(
+                "Unlock CallGuard AI",
+                "Authenticate with your enrolled fingerprint.",
+                onSuccess = { buildScreen(); refreshScreen() },
+                onFailure = { message.text = "Authentication required. Tap below to try again." }
+            )
+        }
+    }
+
+    private fun authenticateBiometric(
+        title: String,
+        subtitle: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG
+        val availability = BiometricManager.from(this).canAuthenticate(authenticators)
+        if (availability != BiometricManager.BIOMETRIC_SUCCESS) {
+            val reason = when (availability) {
+                BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "This device has no supported biometric sensor."
+                BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "The biometric sensor is temporarily unavailable."
+                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "Enroll a fingerprint in Android device security before enabling app lock."
+                BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "Update Android security before using biometric authentication."
+                else -> "Strong biometric authentication is not currently available on this device."
+            }
+            onFailure(reason)
+            return
+        }
+        val prompt = BiometricPrompt(
+            this,
+            ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    onSuccess()
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    onFailure("Authentication was not completed: $errString")
+                }
+                override fun onAuthenticationFailed() {
+                    // Keep the system prompt open so the user can retry.
+                }
+            }
+        )
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setNegativeButtonText("Cancel")
+            .setAllowedAuthenticators(authenticators)
+            .build()
+        prompt.authenticate(promptInfo)
     }
 
     private fun statCard(parent: LinearLayout, title: String, value: String, backgroundColor: String, valueColor: String): TextView {
