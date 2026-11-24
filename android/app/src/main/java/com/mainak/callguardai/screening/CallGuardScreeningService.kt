@@ -25,7 +25,7 @@ class CallGuardScreeningService : CallScreeningService() {
                 runCatching {
                     val store = CallEventStore(applicationContext)
                     try {
-                        store.insert(System.currentTimeMillis(), number, decision.action.name, decision.reason)
+                        store.insert(System.currentTimeMillis(), maskNumber(number), decision.action.name, decision.reason)
                     } finally {
                         store.close()
                     }
@@ -35,6 +35,12 @@ class CallGuardScreeningService : CallScreeningService() {
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to submit screening response", error)
         }
+    }
+
+    private fun maskNumber(number: String?): String {
+        if (number.isNullOrBlank()) return "Unavailable"
+        val digits = number.filter(Char::isDigit)
+        return if (digits.length <= 4) "••••" else "••••••" + digits.takeLast(4)
     }
 
     private companion object {
