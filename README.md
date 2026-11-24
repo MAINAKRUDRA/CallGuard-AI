@@ -18,8 +18,8 @@ Android-first call screening and personal call management.
 - The AES key is generated and retained in Android Keystore; it is not stored in app preferences.
 - Existing plaintext SharedPreferences rules are migrated on first read; legacy keys are removed only after the encrypted write succeeds.
 - Phone numbers are validated and canonicalized to E.164 using Google's libphonenumber.
-- Local-format input uses the device locale's two-letter country region. International numbers beginning with + are parsed independently of the device region.
-- The default region is inferred from device locale, not selected in app settings. Use +countrycode... when the device region differs from the number's region.
+- Users can select a supported two-letter phone region in the app (for example IN, US, or GB); the initial value comes from device locale. Local-format input uses this selected region.
+- International numbers beginning with + are parsed independently of the selected region.
 - Call history stores masked numbers, retains at most 1,000 events, and deletes events older than 90 days. The history database itself is app-private but not encrypted.
 
 ## Technical baseline
@@ -80,10 +80,12 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 - [x] AES-256-GCM encrypted rules using Android Keystore
 - [x] Migration from legacy plaintext rule preferences
 - [x] E.164 normalization using libphonenumber
+- [x] User-selectable phone region and validation
+- [x] Explicit confirmation before importing all contacts as VIPs
 - [x] SQLite schema version 2 migration and timestamp index
 - [x] 90-day retention and 1,000-event cap
 - [x] Allow-first callback fallback on rule-store errors
 - [ ] Verify GitHub Actions results
 - [ ] Verify real call screening on physical Android devices
 
-**Validation status:** source changes are committed, but no successful build, emulator run, or physical-device call test is claimed until the new workflow completes and device tests are performed.
+**Validation status:** GitHub Actions unit tests and debug APK assembly passed on run [45402061040](https://github.com/MAINAKRUDRA/CallGuard-AI/actions/runs/45402061040). The API 35 emulator job was still running at the last check. The subsequent region-setting changes trigger a fresh workflow run and must pass separately. No physical-device call test is claimed.
