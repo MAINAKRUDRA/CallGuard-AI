@@ -26,6 +26,7 @@ Phase 3 is development-only. Continue on `phase-2-security-hardening` and the ex
 ## 3B — Layout and device compatibility
 
 - [x] Add an automated landscape-orientation dashboard smoke test.
+- [x] Add an automated 2.0x system-font test for reachability of primary actions.
 - [ ] Check compact phones (320–360 dp), large phones, tablets, portrait, and landscape on hardware/emulators.
 - [ ] Check Android 10 through Android 16 where available.
 - [ ] Verify system font/display scaling at 1.0x, 1.3x, and 2.0x.
@@ -74,7 +75,7 @@ Do not mark a manufacturer row complete without physical evidence. Hosted Androi
 
 The accessibility pass in `MainActivity.kt` marks section titles as headings on API 28+, uses polite live regions for status/history, labels phone-number and region inputs, and provides explicit switch descriptions and 48 dp minimum touch heights. Dashboard statistic cards reflow into a two-column rules row plus a full-width activity row and can grow vertically with larger text.
 
-`RuleManagementInstrumentedTest.kt` covers allow/block creation, normalized persistence, invalid-number rejection, allow removal, block removal, and region validation. `SecureStorageInstrumentedTest.kt` covers encrypted history retention, the 1,000-event cap, clearing, missing-key preservation, and legacy migration. `LifecycleAndRecoveryInstrumentedTest.kt` adds permission-revocation fail-closed behavior, biometric lock persistence across Activity recreation, history-clear UI behavior while preserving rules, and a landscape dashboard smoke test. Process-death and reboot checks remain manual because terminating or rebooting the target device from its own instrumentation process is not a reliable substitute for an independent device-level test.
+`RuleManagementInstrumentedTest.kt` covers allow/block creation, normalized persistence, invalid-number rejection, allow removal, block removal, and region validation. `SecureStorageInstrumentedTest.kt` covers encrypted history retention, the 1,000-event cap, clearing, missing-key preservation, and legacy migration. `LifecycleAndRecoveryInstrumentedTest.kt` adds permission-revocation fail-closed behavior, biometric lock persistence across Activity recreation, history-clear UI behavior while preserving rules, and landscape / 2.0x font-scale dashboard smoke tests. Process-death and reboot checks remain manual because terminating or rebooting the target device from its own instrumentation process is not a reliable substitute for an independent device-level test.
 
 These are test definitions, not passing results. They must pass in CI on the exact commit. Physical TalkBack, large-font, reboot, telephony, DND, and OEM validation remain open.
 
@@ -86,7 +87,7 @@ These are test definitions, not passing results. They must pass in CI on the exa
 | Debug APK assembly | Awaiting latest head CI | Latest test additions require a completed run |
 | API 35 emulator smoke | Awaiting latest head CI | Latest test additions require a completed run |
 | Dashboard and rule Espresso checks | Added; awaiting CI | `DashboardAccessibilityInstrumentedTest.kt`, `RuleManagementInstrumentedTest.kt` |
-| Permission revocation / biometric Activity recreation / landscape | Added; awaiting CI | `LifecycleAndRecoveryInstrumentedTest.kt` |
+| Permission revocation / biometric Activity recreation / landscape / 2.0x font scale | Added; awaiting CI | `LifecycleAndRecoveryInstrumentedTest.kt` |
 | History retention, cap, missing key, migration, clear | Added; awaiting CI | `SecureStorageInstrumentedTest.kt` |
 | TalkBack / font scaling / compact-screen validation | Not verified | Physical device required |
 | Reboot / SIM telephony / OEM call screening and VIP restore | Not verified | Physical device required |
