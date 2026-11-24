@@ -39,13 +39,14 @@ Phase 3 is development-only. Continue on `phase-2-security-hardening` and the ex
 - [ ] Verify Contacts and Notification Policy Access revocation while VIP override is enabled.
 - [x] Add initial automated UI checks for dashboard summary controls and accessibility labels.
 - [x] Add interaction tests for allow/block creation, normalized persistence, invalid-number rejection, and allow-rule removal.
-- [ ] Add automated checks for block-rule removal, region settings, history clearing, and biometric gate states where the Android test environment supports them.
+- [x] Add automated coverage for block-rule removal through the saved-rules management dialog.
+- [ ] Add automated checks for region settings, history clearing, and biometric gate states where the Android test environment supports them.
 
 ## Current implementation notes
 
 The first accessibility pass is committed in `MainActivity.kt`: section titles expose heading semantics on API 28+, status/history changes use polite accessibility live regions, phone-number and region inputs have explicit descriptions, and the saved-rules activation area is keyboard-focusable with a 48 dp minimum height. The dashboard summary now uses a more flexible two-column layout, the stat cards can grow vertically with larger text, and preference switches expose explicit accessibility descriptions.
 
-`RuleManagementInstrumentedTest.kt` adds Espresso coverage for adding an allow rule, adding a block rule, checking normalized encrypted persistence, rejecting an invalid number, and removing an allow rule through the management dialog. These tests are added but are not considered passing until the current commit's emulator CI job completes.
+`RuleManagementInstrumentedTest.kt` adds Espresso coverage for adding an allow rule, adding a block rule, checking normalized encrypted persistence, rejecting an invalid number, removing an allow rule, and unblocking a saved number through the management dialog. These tests are added but are not considered passing until the current commit's emulator CI job completes.
 
 These source changes are not yet a claim of full accessibility conformance. TalkBack, large-font, touch-target, and OEM validation remain open until tested on actual devices.
 
@@ -57,7 +58,7 @@ These source changes are not yet a claim of full accessibility conformance. Talk
 | Debug APK assembly | In progress on Phase 3 docs snapshot | CI run 45496191687 |
 | API 35 emulator smoke | In progress on Phase 3 docs snapshot | CI run 45496191687 |
 | Dashboard Espresso UI checks | Added; awaiting current CI result | `DashboardAccessibilityInstrumentedTest.kt` |
-| Rule interaction Espresso checks | Added; awaiting current CI result | `RuleManagementInstrumentedTest.kt` |
+| Rule interaction Espresso checks | Added; awaiting current CI result | `RuleManagementInstrumentedTest.kt` (allow/block create, allow removal, block removal, validation) |
 | TalkBack / font scaling | Not tested | Physical device required |
 | OEM call screening / VIP ring override | Not tested | Physical SIM/device tests required |
 
