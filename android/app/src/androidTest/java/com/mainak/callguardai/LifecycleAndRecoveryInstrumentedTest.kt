@@ -135,6 +135,53 @@ class LifecycleAndRecoveryInstrumentedTest {
     }
 
     @Test
+    fun revokingNotificationPolicyAccessDisablesVipOverrideAndCanRecover() {
+        val contacts = Manifest.permission.READ_CONTACTS
+        val phoneState = Manifest.permission.READ_PHONE_STATE
+        val packageName = context.packageName
+        val contactsWasGranted = context.checkSelfPermission(contacts) == PackageManager.PERMISSION_GRANTED
+        val phoneWasGranted = context.checkSelfPermission(phoneState) == PackageManager.PERMISSION_GRANTED
+        val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
+        val dndWasGranted = notificationManager.isNotificationPolicyAccessGranted
+        try {
+            if (!contactsWasGranted) shell("pm grant $packageName $contacts")
+            if (!phoneWasGranted) shell("pm grant $packageName $phoneState")
+            if (!dndWasGranted) shell("cmd notification allow_dnd $packageName")
+            assumeTrue(
+                "Emulator must grant Contacts, Phone state, and DND access for this revocation test",
+                VipRingerOverride.hasRequiredAccess(context)
+            )
+
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                VipRingerOverride.setEnabled(context, true)
+                scenario.moveToState(Lifecycle.State.CREATED)
+                shell("cmd notification disallow_dnd $packageName")
+                scenario.moveToState(Lifecycle.State.RESUMED)
+                instrumentation.waitForIdleSync()
+                assertFalse(
+                    "VIP override must fail closed after Notification Policy Access is revoked",
+                    VipRingerOverride.isEnabled(context)
+                )
+
+                shell("cmd notification allow_dnd $packageName")
+                scenario.moveToState(Lifecycle.State.CREATED)
+                scenario.moveToState(Lifecycle.State.RESUMED)
+                instrumentation.waitForIdleSync()
+                assertTrue(VipRingerOverride.hasRequiredAccess(context))
+                VipRingerOverride.setEnabled(context, true)
+                assertTrue(VipRingerOverride.isEnabled(context))
+            }
+        } finally {
+            VipRingerOverride.setEnabled(context, false)
+            if (contactsWasGranted) shell("pm grant $packageName $contacts")
+            else shell("pm revoke $packageName $contacts")
+            if (phoneWasGranted) shell("pm grant $packageName $phoneState")
+            else shell("pm revoke $packageName $phoneState")
+            if (!dndWasGranted) shell("cmd notification disallow_dnd $packageName")
+        }
+    }
+
+    @Test
     fun biometricLockRemainsEnabledAcrossActivityRecreation() {
         val security = context.getSharedPreferences("callguard_app_security", 0)
         val original = security.getBoolean("biometric_lock_enabled", false)
