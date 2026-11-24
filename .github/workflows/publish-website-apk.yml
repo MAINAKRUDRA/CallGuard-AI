@@ -29,6 +29,9 @@ jobs:
         with:
           ref: main
 
+      - name: Set automatic app version from commit count
+        run: echo "CALLGUARD_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
