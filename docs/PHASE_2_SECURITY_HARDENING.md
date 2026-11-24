@@ -62,6 +62,8 @@ The bounded evaluator and caller-presentation tests are committed. Ringer restor
 - [x] Review dependency declarations for pinned versions; no blind upgrades were made because dependency updates require a separate compatibility/build validation pass.
 - [ ] Verify biometric app-lock lifecycle, enrollment, success, failure, cancellation, and unsupported-hardware behavior on physical devices. Source uses AndroidX BiometricPrompt with BIOMETRIC_STRONG; successful automatic prompt completion now marks the app unlocked so background/foreground relock can work. The implementation requests `BIOMETRIC_STRONG`, which may be fingerprint or another platform-approved strong biometric; UI wording now says biometric rather than fingerprint.
 - [ ] Complete physical-device tests on at least two Android manufacturers.
+- [x] Harden release automation: production build type uses environment-backed signing; GitHub Release publishing requires a `v*` tag (or manual dispatch from a tag with explicit confirmation); website publishing waits for emulator smoke tests and requires the same signing secrets. No debug APK is used as a release artifact.
+- [ ] Configure GitHub Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` without sharing them in chat or committing keystore files; verify the signed APK certificate on a release-candidate build.
 - [ ] Obtain explicit owner approval before merging to `main` or publishing an APK.
 
 ## Current known facts
@@ -71,7 +73,7 @@ The bounded evaluator and caller-presentation tests are committed. Ringer restor
 - Call-history fields are encrypted at rest with AES-256-GCM using a non-exportable Android Keystore key; schema v2-to-v3 migration and key-loss handling are implemented but still require emulator and device validation.
 - Manifest review found no unnecessary exported app components: the screening service is protected by the Android binding permission and the phone-state receiver is private.
 - `android:allowBackup="false"` is set. OEM device-to-device migration behavior still requires physical validation.
-- The current website workflow publishes on qualifying pushes to `main`; all Phase 2 work must remain on this branch until release approval.
+- The website workflow still triggers only on qualifying pushes to `main`, but now waits for emulator smoke tests and uses a signed release APK. The GitHub Release workflow requires a `v*` tag and a signed release build. All Phase 2 work must remain on this branch until release approval.
 
 
 ## Physical-device validation record — required before release
