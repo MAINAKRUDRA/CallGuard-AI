@@ -57,6 +57,14 @@ class MainActivity : ComponentActivity() {
         else showStatus("Contacts permission was not granted. You can still add VIP numbers manually.")
     }
 
+    private val callScreeningContactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) requestScreeningRoleNow()
+        else {
+            showStatus("Contacts access was declined. CallGuard can still screen eligible unknown callers, but Android may not send saved-contact calls to this app.")
+            requestScreeningRoleNow()
+        }
+    }
+
     private val screeningContactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) requestPhoneStatePermission()
         else {
@@ -432,6 +440,15 @@ class MainActivity : ComponentActivity() {
             showStatus("Call screening role requires Android 10 or later.")
             return
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            callScreeningContactsPermission.launch(Manifest.permission.READ_CONTACTS)
+            return
+        }
+        requestScreeningRoleNow()
+    }
+
+    private fun requestScreeningRoleNow() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         val manager = getSystemService(Context.ROLE_SERVICE) as RoleManager
         if (!manager.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING)) {
             showStatus("Call screening is not available on this device.")
