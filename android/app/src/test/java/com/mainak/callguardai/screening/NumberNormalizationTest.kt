@@ -5,6 +5,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class NumberNormalizationTest {
+    @Test fun defaultsUnprefixedNumbersToIndiaAndAddsCountryCode() {
+        assertEquals("IN", PhoneNumberCanonicalizer.defaultRegion())
+        assertEquals("+919876543210", PhoneNumberCanonicalizer.canonicalize("9876543210"))
+    }
+
     @Test fun formatsIndianLocalNumberAsE164() {
         assertEquals("+919876543210", PhoneNumberCanonicalizer.canonicalize("09876543210", "IN"))
     }
