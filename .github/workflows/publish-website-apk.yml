@@ -50,6 +50,11 @@ jobs:
       - name: Build debug APK
         run: gradle :android:app:assembleDebug
 
+      - name: Refresh main before publishing
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
       - name: Publish APK into website
         run: |
           mkdir -p website/downloads
