@@ -39,7 +39,8 @@ Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007
 - [x] Encrypt caller number, action, and reason fields with AES-256-GCM using a non-exportable Android Keystore key.
 - [x] Add a forward-only schema v2 to v3 migration that copies and encrypts rows before dropping the legacy plaintext table; migration failure leaves the transaction uncommitted.
 - [x] Missing Keystore keys are not recreated during decryption; history access reports an error and preserves stored ciphertext. UI displays a recovery warning instead of crashing.
-- [ ] Review Android backup/device-transfer behavior so encrypted data is not restored without its Keystore key.
+- [x] Review Android backup policy: application-level backup is disabled with `android:allowBackup="false"`; encrypted history/rules therefore are not intended to migrate through Android Auto Backup.
+- [ ] Validate backup and device-to-device transfer behavior on OEM devices. Android 12+ documentation notes that some manufacturers may still support device-to-device transfer even when cloud backup is disabled; do not assume this manifest flag alone proves every OEM transfer path is blocked.
 
 Implementation and migration instrumentation test are committed. Unit tests and debug APK build passed on CI run 45486263741; Android API 35 emulator instrumentation/smoke test was still running at last check.
 - [x] Add instrumentation coverage for the 1,000-event cap and clear-history behavior.
@@ -57,15 +58,17 @@ The bounded evaluator and caller-presentation tests are committed. Ringer restor
 
 ### 2C — Release readiness (not authorized yet)
 - [ ] Verify CI unit and instrumentation tests.
-- [ ] Review manifest permissions and exported components.
-- [ ] Review dependency versions and Android backup policy.
-- [ ] Verify biometric app-lock behavior and document the supported biometric classes per OEM.
+- [x] Review manifest permissions and exported components: only the launcher activity is exported for user launch; the call-screening service is exported because Android must bind to it and is protected by `android.permission.BIND_SCREENING_SERVICE`; the phone-state receiver is non-exported.
+- [ ] Review dependency versions.
+- [ ] Verify biometric app-lock behavior and document supported strong biometric classes per OEM. The implementation requests `BIOMETRIC_STRONG`, which may be fingerprint or another platform-approved strong biometric; UI wording now says biometric rather than fingerprint.
 - [ ] Complete physical-device tests on at least two Android manufacturers.
 - [ ] Obtain explicit owner approval before merging to `main` or publishing an APK.
 
 ## Current known facts
 
-- Allow/block rules are AES-256-GCM encrypted with a non-exportable Android Keystore key.
+- Allow/block rules are AES-256-GCM encrypted with a non-exportable Android Keystore key. Decryption now requires the existing key and never creates a replacement when the key is missing, preserving ciphertext and reporting a storage error.
 - Call history currently stores masked caller numbers, has 90-day retention, and is capped at 1,000 rows.
 - Call-history fields are encrypted at rest with AES-256-GCM using a non-exportable Android Keystore key; schema v2-to-v3 migration and key-loss handling are implemented but still require emulator and device validation.
+- Manifest review found no unnecessary exported app components: the screening service is protected by the Android binding permission and the phone-state receiver is private.
+- `android:allowBackup="false"` is set. OEM device-to-device migration behavior still requires physical validation.
 - The current website workflow publishes on qualifying pushes to `main`; all Phase 2 work must remain on this branch until release approval.
