@@ -31,7 +31,7 @@ Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007
 ### 2A — App access security
 - [x] Add optional Android strong-biometric app lock using the system BiometricPrompt; biometric data remains managed by Android.
 - [ ] Validate fingerprint enrollment, successful unlock, failed attempts, cancellation, and devices without biometric hardware on physical devices.
-- [ ] Review whether sensitive rule/history access also needs cryptographic authentication rather than a UI-level app lock.
+- [x] Review sensitive rule/history access: encrypted storage keys remain Android-Keystore protected, but the optional biometric gate is a UI-level access control, not per-operation cryptographic user authentication. This residual distinction is documented; do not describe the switch as biometric-bound encryption.
 
 
 ### 2A — Data protection and lifecycle
@@ -42,7 +42,7 @@ Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007
 - [x] Review Android backup policy: application-level backup is disabled with `android:allowBackup="false"`; encrypted history/rules therefore are not intended to migrate through Android Auto Backup.
 - [ ] Validate backup and device-to-device transfer behavior on OEM devices. Android 12+ documentation notes that some manufacturers may still support device-to-device transfer even when cloud backup is disabled; do not assume this manifest flag alone proves every OEM transfer path is blocked.
 
-Implementation and migration instrumentation test are committed. Unit tests and debug APK build passed on CI run 45486263741; Android API 35 emulator instrumentation/smoke test was still running at last check.
+Implementation, migration instrumentation test, and missing-Keystore-key preservation tests for both rules and history are committed. Unit tests and debug APK build passed on CI run 45486263741; Android API 35 emulator instrumentation/smoke test was still running at last check.
 - [x] Add instrumentation coverage for the 1,000-event cap and clear-history behavior.
 - [x] Retain the existing 90-day retention regression test.
 
@@ -59,8 +59,8 @@ The bounded evaluator and caller-presentation tests are committed. Ringer restor
 ### 2C — Release readiness (not authorized yet)
 - [ ] Verify CI unit and instrumentation tests.
 - [x] Review manifest permissions and exported components: only the launcher activity is exported for user launch; the call-screening service is exported because Android must bind to it and is protected by `android.permission.BIND_SCREENING_SERVICE`; the phone-state receiver is non-exported.
-- [ ] Review dependency versions.
-- [ ] Verify biometric app-lock behavior and document supported strong biometric classes per OEM. The implementation requests `BIOMETRIC_STRONG`, which may be fingerprint or another platform-approved strong biometric; UI wording now says biometric rather than fingerprint.
+- [x] Review dependency declarations for pinned versions; no blind upgrades were made because dependency updates require a separate compatibility/build validation pass.
+- [ ] Verify biometric app-lock lifecycle, enrollment, success, failure, cancellation, and unsupported-hardware behavior on physical devices. Source uses AndroidX BiometricPrompt with BIOMETRIC_STRONG and the UI wording reflects that. The implementation requests `BIOMETRIC_STRONG`, which may be fingerprint or another platform-approved strong biometric; UI wording now says biometric rather than fingerprint.
 - [ ] Complete physical-device tests on at least two Android manufacturers.
 - [ ] Obtain explicit owner approval before merging to `main` or publishing an APK.
 
