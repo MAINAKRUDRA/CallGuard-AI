@@ -134,7 +134,7 @@ class MainActivity : ComponentActivity() {
     private fun buildScreen() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(244, 247, 251))
+            setBackgroundColor(Color.rgb(241, 246, 250))
         }
         val scroll = ScrollView(this).apply {
             isFillViewport = true
@@ -148,11 +148,11 @@ class MainActivity : ComponentActivity() {
 
         val hero = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded("#14243A", 24)
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(10, 28, 48), Color.rgb(17, 78, 91))).apply { cornerRadius = dp(26).toFloat() }
             setPadding(dp(22), dp(24), dp(22), dp(22))
         }
-        hero.addView(label("CALLGUARD AI  ·  PERSONAL CALL CONTROL", "#A9C5E8", 11, true))
-        hero.addView(label("Your calls.\nYour rules.", "#FFFFFF", 30, true).apply {
+        hero.addView(label("✦  CALLGUARD AI  /  SMART CALL PROTECTION", "#9DE9DF", 11, true))
+        hero.addView(label("Your calls.\nYour rules.", "#FFFFFF", 32, true).apply {
             setPadding(0, dp(12), 0, dp(8))
         })
         hero.addView(label("A private, allow-first screening dashboard. Unknown callers are allowed unless you explicitly block them.", "#D6E1EF", 14, false))
@@ -173,7 +173,7 @@ class MainActivity : ComponentActivity() {
         content.addView(hero, matchWrap())
 
         status = label("Checking call screening status…", "#334155", 13, true).apply {
-            background = rounded("#FFFFFF", 14, "#E1E8F0")
+            background = rounded("#FFFFFF", 16, "#DCE7EF")
             setPadding(dp(14), dp(13), dp(14), dp(13))
         }
         content.addView(status, matchWrap().apply { topMargin = dp(12) })
@@ -337,13 +337,13 @@ class MainActivity : ComponentActivity() {
     private fun statCard(parent: LinearLayout, title: String, value: String, backgroundColor: String, valueColor: String): TextView {
         val item = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(backgroundColor, 16)
-            setPadding(dp(12), dp(14), dp(8), dp(14))
+            background = rounded(backgroundColor, 18)
+            setPadding(dp(13), dp(15), dp(10), dp(15))
         }
         item.addView(label(title, "#526174", 10, true))
         val number = label(value, valueColor, 25, true)
         item.addView(number, matchWrap().apply { topMargin = dp(7) })
-        parent.addView(item, LinearLayout.LayoutParams(0, dp(88), 1f).apply {
+        parent.addView(item, LinearLayout.LayoutParams(0, dp(94), 1f).apply {
             if (parent.childCount > 0) leftMargin = dp(7)
             rightMargin = dp(3)
         })
@@ -445,7 +445,7 @@ class MainActivity : ComponentActivity() {
         val policyGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || manager.isNotificationPolicyAccessGranted
         if (::dndAccessStatus.isInitialized) {
             dndAccessStatus.text = if (policyGranted) {
-                "✓ Do Not Disturb access: GRANTED\\nCallGuard is authorized to temporarily change DND for an explicitly saved VIP call."
+                "✓ Do Not Disturb access: GRANTED\nCallGuard is authorized to temporarily change DND for an explicitly saved VIP call."
             } else {
                 "⚠ Do Not Disturb access: NOT GRANTED\\nTap “Grant / manage DND access” below, enable CallGuard AI in Android settings, then return to this app."
             }
@@ -591,9 +591,9 @@ class MainActivity : ComponentActivity() {
 
     private fun card() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        background = rounded("#FFFFFF", 18, "#E5EAF1")
+        background = rounded("#FFFFFF", 20, "#E1EAF1")
         setPadding(dp(16), dp(16), dp(16), dp(16))
-        elevation = dp(1).toFloat()
+        elevation = dp(3).toFloat()
     }
 
     private fun sectionTitle(value: String) = label(value, "#172B45", 19, true).apply {
@@ -617,8 +617,8 @@ class MainActivity : ComponentActivity() {
         minimumHeight = dp(48)
         setPadding(dp(12), dp(8), dp(12), dp(8))
         setTextColor(Color.WHITE)
-        background = rounded(if (primary) "#C6E7D5" else "#EAF0F7", 13)
-        if (!primary) setTextColor(Color.rgb(34, 57, 83))
+        background = rounded(if (primary) "#126B67" else "#E8F0F6", 14)
+        if (!primary) setTextColor(Color.rgb(30, 55, 76))
         stateListAnimator = null
         setOnClickListener { action() }
     }
