@@ -77,8 +77,13 @@ jobs:
           adb logcat -d -t 1500 || true
 
   build-and-publish:
+    needs: emulator-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,16 +110,31 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Validate signing secrets and install release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/callguard-release.jks"
+          test -s "$RUNNER_TEMP/callguard-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/callguard-release.jks" >> "$GITHUB_ENV"
+
       - name: Run unit tests
         run: gradle :android:app:testDebugUnitTest
 
-      - name: Build debug APK
-        run: gradle :android:app:assembleDebug
+      - name: Build signed release APK
+        run: gradle :android:app:assembleRelease
 
       - name: Publish APK and version metadata
         run: |
           mkdir -p website/downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk website/downloads/callguard-ai.apk
+          cp android/app/build/outputs/apk/release/app-release.apk website/downloads/callguard-ai.apk
           printf '{"versionName":"0.3.%s","versionCode":%s,"sourceCommit":"%s"}\n' "$CALLGUARD_BUILD_NUMBER" "$CALLGUARD_BUILD_NUMBER" "$(git rev-parse HEAD)" > website/version.json
 
       - name: Commit website release
