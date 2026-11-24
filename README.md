@@ -21,7 +21,7 @@ Android-first call screening and personal call management.
 - Phone numbers are validated and canonicalized to E.164 using Google's libphonenumber.
 - Users can select a supported two-letter phone region in the app (for example IN, US, or GB); the initial value comes from device locale. Local-format input uses this selected region.
 - International numbers beginning with + are parsed independently of the selected region.
-- Call history stores masked numbers, retains at most 1,000 events, and deletes events older than 90 days. The history database itself is app-private but not encrypted.
+- Call history stores masked numbers, encrypts caller labels/actions/reasons with AES-256-GCM using Android Keystore, retains at most 1,000 events, and deletes events older than 90 days. Event timestamps remain queryable for sorting and retention.
 
 ## Technical baseline
 
@@ -60,7 +60,7 @@ Grant the Call Screening role inside the app and test with a second phone. Confi
 - CallGuard deliberately does not request SMS, call-log, microphone, or storage permissions: they are not required for the current call-screening features. Contacts access is requested only when the user imports contacts or enables VIP ring override (Android otherwise excludes saved-contact calls from CallScreeningService); Phone state is requested only when the user enables VIP ring override.
 - CI derives a monotonically increasing Android versionCode from the full Git commit history and publishes a new APK to the website after successful unit tests/build. Android will still require the user to confirm installation of a downloaded APK; silent self-installation is not available to an ordinary sideloaded app.
 - A third-party app cannot generally capture both sides of an ordinary cellular call. AI receptionist functionality requires a separately validated telephony bridge.
-- Activity history uses masked numbers but SQLite is not encrypted in this phase.
+- Call-history timestamps remain queryable in SQLite; caller labels, actions, and reasons are encrypted at rest in schema version 3. A Keystore key loss makes encrypted history unreadable; do not silently reset or discard it.
 
 Never commit API keys, signing credentials, real call records, contact exports, or production secrets. Do not put privileged backend tokens in the APK. Use synthetic data in tests and demos.
 
@@ -95,7 +95,7 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 
 **Validation status:** GitHub Actions unit tests and debug APK assembly passed on run [45402061040](https://github.com/MAINAKRUDRA/CallGuard-AI/actions/runs/45402061040). The API 35 emulator job was still running at the last check. The subsequent region-setting changes trigger a fresh workflow run and must pass separately. No physical-device call test is claimed.
 
-## Public website and APK downloads
+### Phase 2A — activity-history privacy hardening (development branch only)\n- [x] Encrypt call-history caller labels, actions, and reasons with AES-256-GCM / Android Keystore\n- [x] Migrate existing schema-v2 plaintext history rows to encrypted values during the SQLite v3 upgrade\n- [x] Add instrumentation coverage for encrypted-at-rest values and legacy migration\n- [ ] Run Android unit and API 35 emulator instrumentation tests on the development branch\n- [ ] Validate history migration and display on physical Android devices\n\n**Release gate:** Phase 2A is not released. Development work is isolated on `development/phase-2-privacy-hardening`; do not merge to `main` or publish an APK until the owner explicitly authorizes release.\n\n## Public website and APK downloads
 
 - Website source: [`website/`](website/)
 - Vercel setup: [`docs/VERCEL_WEBSITE_DEPLOYMENT.md`](docs/VERCEL_WEBSITE_DEPLOYMENT.md)
