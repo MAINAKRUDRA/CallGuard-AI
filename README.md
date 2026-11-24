@@ -52,4 +52,25 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 
 ## Status
 
-Repository initialized. Implementation and device verification are in progress; no production-readiness or device-compatibility claim is made yet.
+## Current implementation status
+
+### Phase 1A — screening foundation
+- [x] Android screening-role onboarding
+- [x] Kotlin screening callback
+- [x] Allow-first deterministic policy
+- [x] Explicit allow/block rules with VIP precedence
+- [x] Number normalization unit tests
+
+### Phase 1B — usable MVP controls
+- [x] Manual add/remove for allow and block rules
+- [x] Optional contacts permission and contact-to-VIP import
+- [x] Local SQLite screening activity history
+- [x] Caller numbers masked in activity history
+- [x] Clear local activity history
+- [ ] Encrypt locally stored allow/block rules
+- [ ] Country-aware phone number canonicalization
+- [ ] Device/emulator verification and CI result review
+
+The current allow/block rules are stored in app-private SharedPreferences and are not yet encrypted. Activity history stores masked caller numbers. Treat this build as a development prototype until encryption, device testing, and privacy review are complete.
+
+Repository initialized and Phase 1B implementation committed. No production-readiness or device-compatibility claim is made yet.
