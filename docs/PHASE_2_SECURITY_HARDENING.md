@@ -49,8 +49,11 @@ Implementation and migration instrumentation test are committed. Unit tests and 
 - [x] Add unit tests for explicit VIP allow, allow-over-block precedence, explicit block, unknown caller safe-allow, and missing/blank caller ID safe-allow.
 - [x] Add tests for duplicate, restricted, malformed, private, and unavailable caller presentations; invalid presentations canonicalize to no caller number and are safe-allowed.
 - [x] Bound rule evaluation to 1.5 seconds on a dedicated single-worker executor; timeout, executor saturation, interruption, and evaluation errors use an explicit safe-allow decision.
-- [ ] Verify repeated calls and call-end restoration do not leave the ringer changed.
+- [x] Add unit coverage ensuring restoration does not overwrite a newer Silent/Vibrate choice made by the user during a VIP call.
+- [ ] Verify repeated calls, phone-state IDLE delivery, and call-end restoration on emulator and physical devices.
 - [ ] Add OEM-specific physical-device test records; emulator success alone is not proof of cellular call behavior.
+
+The bounded evaluator and caller-presentation tests are committed. Ringer restoration now preserves a newer user-selected ringer mode; actual telephony lifecycle validation remains pending.
 
 ### 2C — Release readiness (not authorized yet)
 - [ ] Verify CI unit and instrumentation tests.
