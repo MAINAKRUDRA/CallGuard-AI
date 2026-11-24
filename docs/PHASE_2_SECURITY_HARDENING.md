@@ -42,7 +42,7 @@ Artifact inspected: `callguard-ai.apk` (6,254,758 bytes; SHA-256 `0c6726529c2007
 - [x] Review Android backup policy: application-level backup is disabled with `android:allowBackup="false"`; encrypted history/rules therefore are not intended to migrate through Android Auto Backup.
 - [ ] Validate backup and device-to-device transfer behavior on OEM devices. Android 12+ documentation notes that some manufacturers may still support device-to-device transfer even when cloud backup is disabled; do not assume this manifest flag alone proves every OEM transfer path is blocked.
 
-Implementation, migration instrumentation test, and missing-Keystore-key preservation tests for both rules and history are committed. The biometric gate's automatic-success path also now records the unlocked state. Unit tests and debug APK build passed on CI run 45486263741; Android API 35 emulator instrumentation/smoke test was still running at last check.
+Implementation, migration instrumentation test, and missing-Keystore-key preservation tests for both rules and history are committed. The biometric gate's automatic-success path also now records the unlocked state. Historical CI runs on older commits have failed during compilation; the newest commits are queued and must pass before this checklist item can be closed.
 - [x] Add instrumentation coverage for the 1,000-event cap and clear-history behavior.
 - [x] Retain the existing 90-day retention regression test.
 
