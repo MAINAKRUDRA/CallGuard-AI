@@ -24,7 +24,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,7 +37,7 @@ import com.mainak.callguardai.screening.VipRingerOverride
 import java.text.DateFormat
 import java.util.Date
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var status: TextView
     private lateinit var rulesView: TextView
     private lateinit var historyView: TextView
