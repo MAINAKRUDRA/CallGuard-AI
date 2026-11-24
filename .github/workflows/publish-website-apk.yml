@@ -77,7 +77,6 @@ jobs:
           adb logcat -d -t 1500 || true
 
   build-and-publish:
-    needs: emulator-smoke
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
