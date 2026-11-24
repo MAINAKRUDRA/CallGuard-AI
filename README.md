@@ -89,3 +89,12 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 - [ ] Verify real call screening on physical Android devices
 
 **Validation status:** GitHub Actions unit tests and debug APK assembly passed on run [45402061040](https://github.com/MAINAKRUDRA/CallGuard-AI/actions/runs/45402061040). The API 35 emulator job was still running at the last check. The subsequent region-setting changes trigger a fresh workflow run and must pass separately. No physical-device call test is claimed.
+
+## Public website and APK downloads
+
+- Website source: [`website/`](website/)
+- Vercel setup: [`docs/VERCEL_WEBSITE_DEPLOYMENT.md`](docs/VERCEL_WEBSITE_DEPLOYMENT.md)
+- Vercel configuration: [`vercel.json`](vercel.json)
+- APK release workflow: [`.github/workflows/publish-apk-release.yml`](.github/workflows/publish-apk-release.yml)
+
+The website download button uses the latest GitHub Release asset URL. A release must be published before the APK link returns a downloadable file. The automated release currently publishes a debug-signed test APK, not a production Play Store build.
