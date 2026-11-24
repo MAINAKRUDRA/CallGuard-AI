@@ -52,6 +52,9 @@ class MainActivity : FragmentActivity() {
     private lateinit var ringerStatus: TextView
     private lateinit var dndAccessStatus: TextView
     private lateinit var biometricLockSwitch: Switch
+    private var biometricPromptActive = false
+    private var appUnlocked = false
+    private var returnLockPending = false
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus()
@@ -125,6 +128,22 @@ class MainActivity : FragmentActivity() {
             buildScreen()
             refreshScreen()
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (returnLockPending && isBiometricLockEnabled()) {
+            returnLockPending = false
+            showBiometricGate()
+        }
+    }
+
+    override fun onStop() {
+        if (isBiometricLockEnabled() && appUnlocked && !biometricPromptActive) {
+            appUnlocked = false
+            returnLockPending = true
+        }
+        super.onStop()
     }
 
     override fun onResume() {
@@ -415,7 +434,7 @@ class MainActivity : FragmentActivity() {
             authenticateBiometric(
                 "Unlock CallGuard AI",
                 "Authenticate with your enrolled fingerprint.",
-                onSuccess = { buildScreen(); refreshScreen() },
+                onSuccess = { appUnlocked = true; buildScreen(); refreshScreen() },
                 onFailure = { message.text = "Authentication required.\n$message" }
             )
         }, matchWrap().apply { topMargin = dp(22) })
@@ -449,14 +468,17 @@ class MainActivity : FragmentActivity() {
             onFailure(reason)
             return
         }
+        biometricPromptActive = true
         val prompt = BiometricPrompt(
             this,
             ContextCompat.getMainExecutor(this),
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    biometricPromptActive = false
                     onSuccess()
                 }
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    biometricPromptActive = false
                     onFailure("Authentication was not completed: $errString")
                 }
                 override fun onAuthenticationFailed() {
