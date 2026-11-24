@@ -2,6 +2,7 @@ package com.mainak.callguardai
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -28,15 +29,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var rulesView: TextView
     private lateinit var historyView: TextView
     private lateinit var numberInput: EditText
+    private lateinit var regionInput: EditText
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus(it.resultCode == Activity.RESULT_OK)
     }
     private val contactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
-            val count = ContactImporter.importAll(this)
-            status.text = "Imported $count contact numbers into your VIP allow-list."
-            refreshScreen()
+            importContactsNow()
         } else {
             status.text = "Contacts permission was not granted. You can still add VIP numbers manually."
         }
@@ -70,6 +70,22 @@ class MainActivity : ComponentActivity() {
         status = TextView(this).apply { textSize = 14f; setPadding(0, 8, 0, 12) }
         content.addView(status)
         content.addView(actionButton("Enable call screening") { requestScreeningRole() })
+
+        content.addView(sectionTitle("Phone country / region"))
+        regionInput = EditText(this).apply {
+            hint = "Two-letter region, e.g. IN, US, GB"
+            setSingleLine(true)
+            setText(CallGuardPolicy.selectedRegion(this@MainActivity))
+        }
+        content.addView(regionInput, ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ))
+        content.addView(actionButton("Save phone region") {
+            val region = regionInput.text.toString()
+            if (CallGuardPolicy.setRegion(this@MainActivity, region)) {
+                status.text = "Phone region saved as " + region.trim().uppercase() + ". Local numbers will use this region."
+            } else status.text = "Enter a supported two-letter country code, such as IN or US."
+        })
 
         content.addView(sectionTitle("Manage numbers"))
         numberInput = EditText(this).apply {
@@ -112,11 +128,16 @@ class MainActivity : ComponentActivity() {
             } else status.text = "Number was invalid or no block rule matched."
         })
         content.addView(actionButton("Import contacts as VIPs") {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                val count = ContactImporter.importAll(this)
-                status.text = "Imported $count contact numbers into your VIP allow-list."
-                refreshScreen()
-            } else contactsPermission.launch(Manifest.permission.READ_CONTACTS)
+            AlertDialog.Builder(this)
+                .setTitle("Import contacts?")
+                .setMessage("This imports every valid phone number in your contacts into the VIP allow-list. These numbers will be allowed through call screening. Continue?")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Continue") { _, _ ->
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                        importContactsNow()
+                    } else contactsPermission.launch(Manifest.permission.READ_CONTACTS)
+                }
+                .show()
         })
 
         content.addView(sectionTitle("Your rules"))
@@ -134,6 +155,16 @@ class MainActivity : ComponentActivity() {
         scroll.addView(content)
         root.addView(scroll)
         setContentView(root)
+    }
+
+    private fun importContactsNow() {
+        try {
+            val count = ContactImporter.importAll(this)
+            status.text = "Imported " + count + " valid contact numbers into your VIP allow-list."
+            refreshScreen()
+        } catch (error: RuntimeException) {
+            status.text = "Contact import failed: " + (error.message ?: "unknown error")
+        }
     }
 
     private fun requestScreeningRole() {
@@ -164,14 +195,19 @@ class MainActivity : ComponentActivity() {
     private fun refreshScreen() {
         if (!::status.isInitialized) return
         updateRoleStatus()
-        val rules = SecureRuleStore(this)
-        val allow = rules.allowed().sorted()
-        val block = rules.blocked().sorted()
-        rulesView.text = buildString {
-            append("VIP / allowed numbers (" + allow.size + ")\n")
-            append(if (allow.isEmpty()) "  None\n" else allow.joinToString("\n") { "  + " + it } + "\n")
-            append("\nBlocked numbers (" + block.size + ")\n")
-            append(if (block.isEmpty()) "  None" else block.joinToString("\n") { "  − " + it })
+        try {
+            val rules = SecureRuleStore(this)
+            val allow = rules.allowed().sorted()
+            val block = rules.blocked().sorted()
+            rulesView.text = buildString {
+                append("VIP / allowed numbers (" + allow.size + ")\\n")
+                append(if (allow.isEmpty()) "  None\\n" else allow.joinToString("\\n") { "  + " + it } + "\\n")
+                append("\\nBlocked numbers (" + block.size + ")\\n")
+                append(if (block.isEmpty()) "  None" else block.joinToString("\\n") { "  − " + it })
+            }
+        } catch (error: RuntimeException) {
+            rulesView.text = "Encrypted rules could not be opened. Do not clear app data; investigate Android Keystore state."
+            status.text = "Secure storage error: " + (error.message ?: "unknown error")
         }
 
         val store = CallEventStore(this)
