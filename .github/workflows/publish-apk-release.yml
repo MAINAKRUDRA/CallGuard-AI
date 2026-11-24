@@ -16,7 +16,53 @@ permissions:
   contents: write
 
 jobs:
+  emulator-smoke:
+    name: Android API 35 emulator instrumentation
+    if: github.ref_type == 'tag' && (github.event_name == 'push' || inputs.confirm_release == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Set automatic app version from commit count
+        run: echo "CALLGUARD_BUILD_NUMBER=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build debug APK
+        run: gradle :android:app:assembleDebug
+
+      - name: Run Android API 35 emulator tests and launch app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 1200
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
+          disable-animations: true
+          cores: 2
+          ram-size: 2048
+          heap-size: 512
+          script: |
+            timeout 15m gradle :android:app:connectedDebugAndroidTest
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.mainak.callguardai
+            adb shell monkey -p com.mainak.callguardai 1
+            sleep 5
+            adb shell dumpsys activity activities | grep -q com.mainak.callguardai
+
   build-and-release:
+    needs: emulator-smoke
     if: github.ref_type == 'tag' && (github.event_name == 'push' || inputs.confirm_release == true)
     runs-on: ubuntu-latest
     env:
@@ -60,6 +106,20 @@ jobs:
 
       - name: Build signed release APK
         run: gradle :android:app:assembleRelease
+
+      - name: Verify APK signature and non-debuggable manifest
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          if "$AAPT" dump badging "$APK" | grep -q "application-debuggable"; then
+            echo "::error::Refusing to publish a debuggable APK"
+            exit 1
+          fi
 
       - name: Prepare release asset
         run: cp android/app/build/outputs/apk/release/app-release.apk callguard-ai.apk
