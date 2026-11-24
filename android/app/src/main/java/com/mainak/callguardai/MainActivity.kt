@@ -324,7 +324,7 @@ class MainActivity : FragmentActivity() {
         }, matchWrap().apply { topMargin = dp(10) })
 
         settingsCard.addView(label("Biometric app lock", "#172B45", 16, true), matchWrap().apply { topMargin = dp(18) })
-        settingsCard.addView(label("Require Android biometric authentication before opening your CallGuard rules and activity. Fingerprint data stays with Android and is never collected by CallGuard.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
+        settingsCard.addView(label("Require Android biometric authentication before opening your CallGuard rules and activity. Biometric data stays with Android and is never collected by CallGuard.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
         biometricLockSwitch = Switch(this).apply {
             text = "Require biometrics to open app"
             textSize = 14f
@@ -333,8 +333,8 @@ class MainActivity : FragmentActivity() {
             setOnCheckedChangeListener { _, enabled ->
                 isEnabled = false
                 authenticateBiometric(
-                    if (enabled) "Enable CallGuard fingerprint lock" else "Disable CallGuard fingerprint lock",
-                    if (enabled) "Confirm your fingerprint to protect this app." else "Confirm your fingerprint to turn off app lock.",
+                    if (enabled) "Enable CallGuard biometric lock" else "Disable CallGuard biometric lock",
+                    if (enabled) "Confirm your biometric to protect this app." else "Confirm your biometric to turn off app lock.",
                     onSuccess = {
                         appUnlocked = true
                         setBiometricLockEnabled(enabled)
@@ -401,8 +401,8 @@ class MainActivity : FragmentActivity() {
     private fun toggleBiometricLock(enabled: Boolean) {
         biometricLockSwitch.isEnabled = false
         authenticateBiometric(
-            if (enabled) "Enable CallGuard fingerprint lock" else "Disable CallGuard fingerprint lock",
-            "Confirm your fingerprint to update app security.",
+            if (enabled) "Enable CallGuard biometric lock" else "Disable CallGuard biometric lock",
+            "Confirm your biometric to update app security.",
             onSuccess = {
                 appUnlocked = true
                 setBiometricLockEnabled(enabled)
