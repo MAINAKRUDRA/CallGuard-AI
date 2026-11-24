@@ -204,10 +204,14 @@ class MainActivity : FragmentActivity() {
         content.addView(status, matchWrap().apply { topMargin = dp(12) })
 
         content.addView(sectionTitle("Overview"), matchWrap().apply { topMargin = dp(24) })
-        val stats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        allowCount = statCard(stats, "VIP / ALLOWED", "0", "#E8F5EE", "#147A48")
-        blockCount = statCard(stats, "BLOCKED", "0", "#FDECEC", "#B42318")
-        activityCount = statCard(stats, "ACTIVITY", "0", "#EAF1FC", "#245A9B")
+        val stats = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val rulesStats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        allowCount = statCard(rulesStats, "VIP / ALLOWED", "0", "#E8F5EE", "#147A48")
+        blockCount = statCard(rulesStats, "BLOCKED", "0", "#FDECEC", "#B42318")
+        val activityStats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        activityCount = statCard(activityStats, "ACTIVITY", "0", "#EAF1FC", "#245A9B")
+        stats.addView(rulesStats, matchWrap())
+        stats.addView(activityStats, matchWrap().apply { topMargin = dp(8) })
         content.addView(stats, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Manage a phone number"), matchWrap().apply { topMargin = dp(24) })
@@ -282,6 +286,8 @@ class MainActivity : FragmentActivity() {
         }
         vipRingSwitch = Switch(this).apply {
             text = "Enable VIP ring override"
+            contentDescription = "Enable or disable the optional VIP ringer and Do Not Disturb override"
+            minHeight = dp(48)
             textSize = 14f
             setTextColor(Color.rgb(34, 57, 83))
             setOnCheckedChangeListener { _, checked ->
@@ -334,6 +340,8 @@ class MainActivity : FragmentActivity() {
         settingsCard.addView(label("Require Android biometric authentication before opening your CallGuard rules and activity. Biometric data stays with Android and is never collected by CallGuard.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
         biometricLockSwitch = Switch(this).apply {
             text = "Require biometrics to open app"
+            contentDescription = "Require a supported strong device biometric before opening CallGuard"
+            minHeight = dp(48)
             textSize = 14f
             setTextColor(Color.rgb(34, 57, 83))
             isChecked = isBiometricLockEnabled()
@@ -510,12 +518,13 @@ class MainActivity : FragmentActivity() {
         val item = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = rounded(backgroundColor, 18)
+            minimumHeight = dp(94)
             setPadding(dp(13), dp(15), dp(10), dp(15))
         }
         item.addView(label(title, "#526174", 10, true))
         val number = label(value, valueColor, 25, true)
         item.addView(number, matchWrap().apply { topMargin = dp(7) })
-        parent.addView(item, LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+        parent.addView(item, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
             if (parent.childCount > 0) leftMargin = dp(7)
             rightMargin = dp(3)
         })
