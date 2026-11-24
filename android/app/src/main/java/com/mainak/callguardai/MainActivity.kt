@@ -97,6 +97,12 @@ class MainActivity : ComponentActivity() {
         }, matchWrap().apply { topMargin = dp(14) })
         content.addView(hero, matchWrap())
 
+        status = label("Checking call screening status…", "#334155", 13, true).apply {
+            background = rounded("#FFFFFF", 14, "#E1E8F0")
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+        }
+        content.addView(status, matchWrap().apply { topMargin = dp(12) })
+
         content.addView(sectionTitle("Overview"), matchWrap().apply { topMargin = dp(24) })
         val stats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         allowCount = statCard(stats, "VIP / ALLOWED", "0", "#E8F5EE", "#147A48")
