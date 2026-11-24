@@ -13,6 +13,12 @@ This phase is development-only until the owner explicitly authorizes a release.
 
 ## Phase 2 work plan
 
+### 2A — App access security
+- [x] Add optional Android strong-biometric app lock using the system BiometricPrompt; biometric data remains managed by Android.
+- [ ] Validate fingerprint enrollment, successful unlock, failed attempts, cancellation, and devices without biometric hardware on physical devices.
+- [ ] Review whether sensitive rule/history access also needs cryptographic authentication rather than a UI-level app lock.
+
+
 ### 2A — Data protection and lifecycle
 - [ ] Review the current history schema and confirm that only masked numbers are persisted.
 - [ ] Design authenticated encryption for history fields or the database using an Android Keystore key.
@@ -33,6 +39,7 @@ This phase is development-only until the owner explicitly authorizes a release.
 - [ ] Verify CI unit and instrumentation tests.
 - [ ] Review manifest permissions and exported components.
 - [ ] Review dependency versions and Android backup policy.
+- [ ] Verify biometric app-lock behavior and document the supported biometric classes per OEM.
 - [ ] Complete physical-device tests on at least two Android manufacturers.
 - [ ] Obtain explicit owner approval before merging to `main` or publishing an APK.
 
