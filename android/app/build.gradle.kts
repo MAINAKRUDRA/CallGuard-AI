@@ -1,3 +1,9 @@
+val callguardBuildNumber = providers.environmentVariable("CALLGUARD_BUILD_NUMBER")
+    .orElse(providers.gradleProperty("callguardBuildNumber"))
+    .orElse("1")
+    .get()
+    .toInt()
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,8 +17,8 @@ android {
         applicationId = "com.mainak.callguardai"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.2.0"
+        versionCode = callguardBuildNumber
+        versionName = "0.3.$callguardBuildNumber"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
