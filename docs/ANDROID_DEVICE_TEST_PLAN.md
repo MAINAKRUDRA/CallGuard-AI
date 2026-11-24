@@ -19,7 +19,7 @@ adb install -r app-debug.apk
 adb shell monkey -p com.mainak.callguardai 1
 ```
 
-Open CallGuard AI and grant the Android **Call Screening** role when prompted. Grant Contacts permission only if testing contact import.
+Open CallGuard AI and grant the Android **Call Screening** role when prompted. Grant Contacts permission only if testing contact import. Grant Phone state and Notification Policy Access only when testing the optional VIP ring override.
 
 ## Test cases
 
@@ -40,6 +40,11 @@ Open CallGuard AI and grant the Android **Call Screening** role when prompted. G
 | DEV-13 | Rule persistence | Add test rule; force-stop and reopen app | Encrypted rule remains available |
 | DEV-14 | Upgrade migration | Install an older build with test rules, then update to this build | Existing rules migrate and remain usable |
 | DEV-15 | No screening role | Remove role in Android settings and reopen app | UI reports role not enabled; no false success state |
+| DEV-16 | VIP rings in Silent | Enable VIP ring override and grant both requested permissions; set phone to Silent; call from an explicit VIP number | Phone temporarily rings; original Silent mode is restored when the call ends |
+| DEV-17 | VIP rings in Vibrate | Repeat DEV-16 with Vibrate mode | Phone temporarily rings; original Vibrate mode is restored when the call ends |
+| DEV-18 | DND remains respected | Enable Do Not Disturb and call from an explicit VIP number | CallGuard does not change ringer mode or bypass DND |
+| DEV-19 | Permission denial | Deny Phone state permission or Notification Policy Access during setup | VIP ring override remains off; normal call screening continues |
+| DEV-20 | Ringer restoration | Enable override, receive VIP call, then end/reject the call | Original ringer mode is restored; reopen app to confirm displayed phone mode |
 
 ## Evidence to capture
 
@@ -56,5 +61,6 @@ Do not attach raw call logs, phone numbers, contacts, or SIM identifiers to publ
 
 - Android/OEM behavior and carrier restrictions can differ.
 - Emergency calls, spam protection, dual-SIM routing, call waiting, and caller-ID presentation require separate testing.
+- VIP ring override must be tested on each target OEM: Android ringer-mode behavior, ringtone volume, DND, and telephony state broadcasts can differ. Do not claim support for DND bypass.
 - This plan does not validate recording, two-way audio capture, AI answering, or SIP/carrier forwarding.
 - Do not release broadly until critical test cases pass on the target handset models.
