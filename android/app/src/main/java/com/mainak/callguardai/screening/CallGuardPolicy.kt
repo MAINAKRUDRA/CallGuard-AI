@@ -29,11 +29,11 @@ object CallGuardPolicy {
 
     fun evaluate(context: Context, handle: Uri?): ScreeningDecision {
         val number = normalizeNumber(handle?.schemeSpecificPart, selectedRegion(context))
-            ?: return ScreeningDecision(ScreeningAction.ALLOW, "Caller ID unavailable or invalid; allowed by safe default")
+        if (number == null) {
+            return CallRuleEvaluator.evaluate(null, emptySet(), emptySet())
+        }
         val rules = SecureRuleStore(context)
-        if (rules.allowed().contains(number)) return ScreeningDecision(ScreeningAction.ALLOW, "Explicit allow rule", "allow")
-        if (rules.blocked().contains(number)) return ScreeningDecision(ScreeningAction.REJECT, "Explicit user block rule", "block")
-        return ScreeningDecision(ScreeningAction.ALLOW, "No matching rule; allowed by safe default")
+        return CallRuleEvaluator.evaluate(number, rules.allowed(), rules.blocked())
     }
 
     fun addAllow(context: Context, rawNumber: String): Boolean =
