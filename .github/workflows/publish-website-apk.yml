@@ -131,6 +131,20 @@ jobs:
       - name: Build signed release APK
         run: gradle :android:app:assembleRelease
 
+      - name: Verify APK signature and non-debuggable manifest
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          if "$AAPT" dump badging "$APK" | grep -q "application-debuggable"; then
+            echo "::error::Refusing to publish a debuggable APK"
+            exit 1
+          fi
+
       - name: Publish APK and version metadata
         run: |
           mkdir -p website/downloads
