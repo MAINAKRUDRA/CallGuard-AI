@@ -67,6 +67,19 @@ class RuleManagementInstrumentedTest {
     }
 
     @Test
+    fun savedBlockRuleCanBeRemovedFromManagementDialog() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = SecureRuleStore(context)
+        store.removeBlock(testNumber)
+        assertTrue(CallGuardPolicy.addBlock(context, testNumber))
+
+        onView(withContentDescription("Saved allow and block rules. Activate to manage rules."))
+            .perform(scrollTo(), click())
+        onView(withText(startsWith("Unblock:"))).perform(click())
+
+        assertFalse(testNumber in store.blocked())
+    }
+    @Test
     fun invalidNumberDoesNotCreateAnAllowRule() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = SecureRuleStore(context)
