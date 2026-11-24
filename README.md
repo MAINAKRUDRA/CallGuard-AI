@@ -95,7 +95,16 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 
 **Validation status:** GitHub Actions unit tests and debug APK assembly passed on run [45402061040](https://github.com/MAINAKRUDRA/CallGuard-AI/actions/runs/45402061040). The API 35 emulator job was still running at the last check. The subsequent region-setting changes trigger a fresh workflow run and must pass separately. No physical-device call test is claimed.
 
-### Phase 2A — activity-history privacy hardening (development branch only)\n- [x] Encrypt call-history caller labels, actions, and reasons with AES-256-GCM / Android Keystore\n- [x] Migrate existing schema-v2 plaintext history rows to encrypted values during the SQLite v3 upgrade\n- [x] Add instrumentation coverage for encrypted-at-rest values and legacy migration\n- [ ] Run Android unit and API 35 emulator instrumentation tests on the development branch\n- [ ] Validate history migration and display on physical Android devices\n\n**Release gate:** Phase 2A is not released. Development work is isolated on `development/phase-2-privacy-hardening`; do not merge to `main` or publish an APK until the owner explicitly authorizes release.\n\n## Public website and APK downloads
+### Phase 2A — activity-history privacy hardening (development branch only)
+- [x] Encrypt call-history caller labels, actions, and reasons with AES-256-GCM / Android Keystore
+- [x] Migrate existing schema-v2 plaintext history rows to encrypted values during the SQLite v3 upgrade
+- [x] Add instrumentation coverage for encrypted-at-rest values and legacy migration
+- [ ] Run Android unit and API 35 emulator instrumentation tests on the development branch
+- [ ] Validate history migration and display on physical Android devices
+
+**Release gate:** Phase 2A is not released. Development work is isolated on `development/phase-2-privacy-hardening`; do not merge to `main` or publish an APK until the owner explicitly authorizes release.
+
+## Public website and APK downloads
 
 - Website source: [`website/`](website/)
 - Vercel setup: [`docs/VERCEL_WEBSITE_DEPLOYMENT.md`](docs/VERCEL_WEBSITE_DEPLOYMENT.md)
