@@ -80,6 +80,28 @@ class RuleManagementInstrumentedTest {
         assertFalse(testNumber in store.blocked())
     }
     @Test
+    fun supportedPhoneRegionCanBeSavedAndInvalidRegionIsRejected() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val originalRegion = CallGuardPolicy.selectedRegion(context)
+        try {
+            onView(withHint("IN"))
+                .perform(scrollTo(), replaceText("US"))
+            onView(withText("Save phone region")).perform(scrollTo(), click())
+            onView(withText("Phone region saved as US.")).check(matches(isDisplayed()))
+            assertTrue(CallGuardPolicy.selectedRegion(context) == "US")
+
+            onView(withHint("IN"))
+                .perform(scrollTo(), replaceText("ZZ"))
+            onView(withText("Save phone region")).perform(scrollTo(), click())
+            onView(withText("Enter a supported two-letter country code, such as IN or US."))
+                .check(matches(isDisplayed()))
+            assertTrue(CallGuardPolicy.selectedRegion(context) == "US")
+        } finally {
+            CallGuardPolicy.setRegion(context, originalRegion)
+        }
+    }
+
+    @Test
     fun invalidNumberDoesNotCreateAnAllowRule() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = SecureRuleStore(context)
