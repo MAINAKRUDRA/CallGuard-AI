@@ -14,7 +14,9 @@ class CallGuardScreeningService : CallScreeningService() {
             Log.e(TAG, "Rule evaluation failed; applying allow-first fallback", error)
             ScreeningDecision(ScreeningAction.ALLOW, "Rule storage unavailable; safe allow fallback")
         }
-        if (decision.action == ScreeningAction.ALLOW && decision.matchedRule == "allow") {
+        if (callDetails.callDirection == Call.Details.DIRECTION_INCOMING &&
+            decision.action == ScreeningAction.ALLOW && decision.matchedRule == "allow"
+        ) {
             val changed = VipRingerOverride.onVipIncomingCall(this)
             if (changed) Log.i(TAG, "VIP ring override activated; original ringer mode will be restored when the call ends")
         }
