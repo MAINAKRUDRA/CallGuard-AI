@@ -4,6 +4,10 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.role.RoleManager
+import android.app.NotificationManager
+import android.content.Intent
+import android.provider.Settings
+import android.telephony.TelephonyManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -18,6 +22,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +31,7 @@ import com.mainak.callguardai.contacts.ContactImporter
 import com.mainak.callguardai.data.CallEventStore
 import com.mainak.callguardai.data.SecureRuleStore
 import com.mainak.callguardai.screening.CallGuardPolicy
+import com.mainak.callguardai.screening.VipRingerOverride
 import java.text.DateFormat
 import java.util.Date
 
@@ -40,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var activityCount: TextView
     private lateinit var roleBadge: TextView
     private lateinit var importSummary: TextView
+    private lateinit var vipRingSwitch: Switch
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus(it.resultCode == Activity.RESULT_OK)
@@ -47,6 +54,18 @@ class MainActivity : ComponentActivity() {
     private val contactsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) importContactsNow()
         else showStatus("Contacts permission was not granted. You can still add VIP numbers manually.")
+    }
+
+    private val phoneStatePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) requestNotificationPolicyAccess()
+        else {
+            VipRingerOverride.setEnabled(this, false)
+            syncVipRingSwitch()
+            showStatus("Phone-state permission is required to restore your previous ringer mode after a VIP call.")
+        }
+    }
+    private val policyAccessRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        completeVipRingSetup()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -165,6 +184,30 @@ class MainActivity : ComponentActivity() {
         }, matchWrap().apply { topMargin = dp(12) })
         content.addView(contactsCard, matchWrap().apply { topMargin = dp(10) })
 
+        content.addView(sectionTitle("VIP ring override"), matchWrap().apply { topMargin = dp(24) })
+        val vipCard = card()
+        vipCard.addView(label("Let VIP callers ring through Silent / Vibrate", "#172B45", 16, true))
+        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches the ringer to Normal and restores your previous Silent or Vibrate mode when the call ends.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        val switchRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        vipRingSwitch = Switch(this).apply {
+            text = "Enable VIP ring override"
+            textSize = 14f
+            setTextColor(Color.rgb(34, 57, 83))
+            setOnCheckedChangeListener { _, checked ->
+                if (!checked) {
+                    VipRingerOverride.setEnabled(this@MainActivity, false)
+                    showStatus("VIP ring override is off.")
+                } else startVipRingSetup()
+            }
+        }
+        switchRow.addView(vipRingSwitch, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        vipCard.addView(switchRow, matchWrap().apply { topMargin = dp(10) })
+        vipCard.addView(label("Requires Phone state permission and Android Notification Policy Access. Do Not Disturb is not bypassed. SMS permission is not needed for call screening.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
+        content.addView(vipCard, matchWrap().apply { topMargin = dp(10) })
+
         content.addView(sectionTitle("Your rules"), matchWrap().apply { topMargin = dp(24) })
         val rulesCard = card()
         rulesView = label("Loading your encrypted rules…", "#334155", 13, false)
@@ -213,6 +256,10 @@ class MainActivity : ComponentActivity() {
                 .show()
         }, matchWrap().apply { topMargin = dp(10) })
 
+        content.addView(label("CallGuard AI  ·  Version ${BuildConfig.VERSION_NAME}", "#64748B", 11, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(12), 0, dp(2))
+        }, matchWrap())
         content.addView(label("PRIVACY FIRST  ·  DATA STORED ON THIS DEVICE", "#64748B", 11, true).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(26), 0, dp(4))
@@ -243,6 +290,7 @@ class MainActivity : ComponentActivity() {
     private fun refreshScreen() {
         if (!::status.isInitialized) return
         updateRoleStatus()
+        if (::vipRingSwitch.isInitialized) syncVipRingSwitch()
         try {
             val rules = SecureRuleStore(this)
             val allow = rules.allowed().sorted()
@@ -280,6 +328,51 @@ class MainActivity : ComponentActivity() {
             refreshScreen()
         } catch (error: RuntimeException) {
             showStatus("Contact import failed: " + (error.message ?: "unknown error"))
+        }
+    }
+
+    private fun startVipRingSetup() {
+        // Keep the switch off until both user-controlled permissions are granted.
+        VipRingerOverride.setEnabled(this, false)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            phoneStatePermission.launch(Manifest.permission.READ_PHONE_STATE)
+            return
+        }
+        requestNotificationPolicyAccess()
+    }
+
+    private fun requestNotificationPolicyAccess() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !manager.isNotificationPolicyAccessGranted) {
+            policyAccessRequest.launch(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+        } else {
+            completeVipRingSetup()
+        }
+    }
+
+    private fun completeVipRingSetup() {
+        val phoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val policyGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || manager.isNotificationPolicyAccessGranted
+        val enabled = phoneGranted && policyGranted
+        VipRingerOverride.setEnabled(this, enabled)
+        syncVipRingSwitch()
+        showStatus(if (enabled) {
+            "VIP ring override enabled. VIP calls can temporarily ring through Silent/Vibrate when Do Not Disturb is off."
+        } else {
+            "VIP ring override was not enabled. Grant both requested permissions in Android Settings."
+        })
+    }
+
+    private fun syncVipRingSwitch() {
+        if (!::vipRingSwitch.isInitialized) return
+        vipRingSwitch.setOnCheckedChangeListener(null)
+        vipRingSwitch.isChecked = VipRingerOverride.isEnabled(this)
+        vipRingSwitch.setOnCheckedChangeListener { _, checked ->
+            if (!checked) {
+                VipRingerOverride.setEnabled(this, false)
+                showStatus("VIP ring override is off.")
+            } else startVipRingSetup()
         }
     }
 
