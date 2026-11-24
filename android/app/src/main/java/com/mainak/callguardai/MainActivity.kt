@@ -94,6 +94,22 @@ class MainActivity : ComponentActivity() {
                 refreshScreen()
             } else status.text = "Enter a valid phone number."
         })
+        content.addView(actionButton("Remove from VIP / allow-list") {
+            val value = numberInput.text.toString()
+            if (CallGuardPolicy.removeAllow(this, value)) {
+                status.text = "Allow rule removed."
+                numberInput.text.clear()
+                refreshScreen()
+            } else status.text = "Number was invalid or no allow rule matched."
+        })
+        content.addView(actionButton("Unblock this number") {
+            val value = numberInput.text.toString()
+            if (CallGuardPolicy.removeBlock(this, value)) {
+                status.text = "Block rule removed."
+                numberInput.text.clear()
+                refreshScreen()
+            } else status.text = "Number was invalid or no block rule matched."
+        })
         content.addView(actionButton("Import contacts as VIPs") {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                 val count = ContactImporter.importAll(this)
