@@ -158,6 +158,8 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun buildScreen() {
+        val compactWidth = resources.configuration.screenWidthDp < 360
+        val horizontalPadding = if (compactWidth) 14 else 18
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(241, 246, 250))
@@ -169,7 +171,7 @@ class MainActivity : FragmentActivity() {
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(18), dp(18), dp(28))
+            setPadding(dp(horizontalPadding), dp(18), dp(horizontalPadding), dp(28))
         }
 
         val hero = LinearLayout(this).apply {
@@ -229,8 +231,19 @@ class MainActivity : FragmentActivity() {
         }
         content.addView(numberInput, matchWrap().apply { topMargin = dp(12) })
         val actions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+            orientation = if (compactWidth) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+        }
+        val actionButtonHeight = ViewGroup.LayoutParams.WRAP_CONTENT
+        val allowActionParams = if (compactWidth) {
+            matchWrap().apply { topMargin = dp(8) }
+        } else {
+            LinearLayout.LayoutParams(0, actionButtonHeight, 1f).apply { rightMargin = dp(6) }
+        }
+        val blockActionParams = if (compactWidth) {
+            matchWrap().apply { topMargin = dp(8) }
+        } else {
+            LinearLayout.LayoutParams(0, actionButtonHeight, 1f).apply { leftMargin = dp(6) }
         }
         actions.addView(actionButton("Allow / VIP", true) {
             val value = numberInput.text.toString()
@@ -239,7 +252,7 @@ class MainActivity : FragmentActivity() {
                 showStatus("Number added to your VIP allow-list.")
                 refreshScreen()
             } else showStatus("Enter a valid phone number for the selected region.")
-        }, LinearLayout.LayoutParams(0, dp(50), 1f).apply { rightMargin = dp(6) })
+        }, allowActionParams)
         actions.addView(actionButton("Block number", false) {
             val value = numberInput.text.toString()
             if (CallGuardPolicy.addBlock(this@MainActivity, value)) {
@@ -247,7 +260,7 @@ class MainActivity : FragmentActivity() {
                 showStatus("Number blocked. VIP allow rules still take priority.")
                 refreshScreen()
             } else showStatus("Enter a valid phone number for the selected region.")
-        }, LinearLayout.LayoutParams(0, dp(50), 1f).apply { leftMargin = dp(6) })
+        }, blockActionParams)
         content.addView(actions, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Contacts"), matchWrap().apply { topMargin = dp(24) })
