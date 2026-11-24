@@ -386,11 +386,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchContactPicker() {
-        val intent = Intent(
-            Intent.ACTION_PICK,
-            android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-        )
-        intent.type = android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+        val intent = Intent(Intent.ACTION_PICK).apply {
+            setDataAndType(
+                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+            )
+        }
         contactPicker.launch(intent)
     }
 
