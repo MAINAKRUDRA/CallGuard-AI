@@ -183,13 +183,13 @@ class MainActivity : ComponentActivity() {
         content.addView(sectionTitle("Contacts"), matchWrap().apply { topMargin = dp(24) })
         val contactsCard = card()
         contactsCard.addView(label("Import trusted contacts", "#172B45", 16, true))
-        contactsCard.addView(label("Valid phone numbers from your address book will be added to the VIP allow-list. Review the permission before continuing.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        contactsCard.addView(label("Imports phone numbers only from this device’s Contacts app into your encrypted VIP allow-list. It does not read your call history, SMS, or messages.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
         importSummary = label("No contacts imported in this session.", "#147A48", 12, true)
         contactsCard.addView(importSummary, matchWrap().apply { topMargin = dp(10) })
         contactsCard.addView(actionButton("Review and import contacts", false) {
             AlertDialog.Builder(this)
                 .setTitle("Import contacts as VIPs?")
-                .setMessage("Every valid phone number in your contacts will be added to the VIP allow-list and allowed through screening. Continue?")
+                .setMessage("Phone numbers from your device address book will be added to the on-device VIP allow-list. No call-log or SMS data is imported. Continue?")
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Continue") { _, _ ->
                     if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
@@ -398,16 +398,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun completeVipRingSetup() {
+        val contactsGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         val phoneGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val policyGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || manager.isNotificationPolicyAccessGranted
-        val enabled = phoneGranted && policyGranted
+        val enabled = contactsGranted && phoneGranted && policyGranted
         VipRingerOverride.setEnabled(this, enabled)
         syncVipRingSwitch()
         showStatus(if (enabled) {
             "VIP ring override enabled. VIP calls can temporarily ring through Silent/Vibrate when Do Not Disturb is off."
         } else {
-            "VIP ring override was not enabled. Grant both requested permissions in Android Settings."
+            "VIP ring override was not enabled. Grant Contacts, Phone state, and Notification Policy Access."
         })
     }
 
