@@ -336,6 +336,7 @@ class MainActivity : FragmentActivity() {
                     if (enabled) "Enable CallGuard fingerprint lock" else "Disable CallGuard fingerprint lock",
                     if (enabled) "Confirm your fingerprint to protect this app." else "Confirm your fingerprint to turn off app lock.",
                     onSuccess = {
+                        appUnlocked = true
                         setBiometricLockEnabled(enabled)
                         biometricLockSwitch.isChecked = enabled
                         biometricLockSwitch.isEnabled = true
@@ -403,6 +404,7 @@ class MainActivity : FragmentActivity() {
             if (enabled) "Enable CallGuard fingerprint lock" else "Disable CallGuard fingerprint lock",
             "Confirm your fingerprint to update app security.",
             onSuccess = {
+                appUnlocked = true
                 setBiometricLockEnabled(enabled)
                 biometricLockSwitch.isChecked = enabled
                 biometricLockSwitch.isEnabled = true
