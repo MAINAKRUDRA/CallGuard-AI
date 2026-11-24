@@ -1,5 +1,6 @@
 package com.mainak.callguardai.data
 
+import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mainak.callguardai.screening.PhoneNumberCanonicalizer
@@ -56,8 +57,58 @@ class SecureStorageInstrumentedTest {
             store.insert(System.currentTimeMillis(), "••••4321", "ALLOW", "current")
             assertEquals(1, store.latest(10).size)
             assertEquals("current", store.latest(10).first().reason)
+            store.readableDatabase.rawQuery(
+                "SELECT number, action, reason FROM call_events", null
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.getString(0).startsWith("enc:"))
+                assertTrue(cursor.getString(1).startsWith("enc:"))
+                assertTrue(cursor.getString(2).startsWith("enc:"))
+                assertFalse(cursor.getString(2).contains("current"))
+            }
         } finally {
             store.close()
         }
     }
+    @Test fun plaintextVersionTwoHistoryMigratesToEncryptedRows() {
+        context.deleteDatabase("callguard.db")
+        val databaseFile = context.getDatabasePath("callguard.db")
+        databaseFile.parentFile?.mkdirs()
+        val legacyDb = SQLiteDatabase.openOrCreateDatabase(databaseFile, null)
+        legacyDb.execSQL("""
+            CREATE TABLE call_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                number TEXT NOT NULL,
+                action TEXT NOT NULL,
+                reason TEXT NOT NULL
+            )
+        """.trimIndent())
+        legacyDb.execSQL(
+            "INSERT INTO call_events(timestamp, number, action, reason) VALUES(?, ?, ?, ?)",
+            arrayOf(System.currentTimeMillis(), "••••3210", "ALLOW", "legacy VIP allow")
+        )
+        legacyDb.version = 2
+        legacyDb.close()
+
+        val store = CallEventStore(context)
+        try {
+            val migrated = store.latest(10).single()
+            assertEquals("••••3210", migrated.number)
+            assertEquals("ALLOW", migrated.action)
+            assertEquals("legacy VIP allow", migrated.reason)
+            store.readableDatabase.rawQuery(
+                "SELECT number, action, reason FROM call_events", null
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.getString(0).startsWith("enc:"))
+                assertTrue(cursor.getString(1).startsWith("enc:"))
+                assertTrue(cursor.getString(2).startsWith("enc:"))
+                assertFalse(cursor.getString(2).contains("legacy VIP allow"))
+            }
+        } finally {
+            store.close()
+        }
+    }
+
 }
