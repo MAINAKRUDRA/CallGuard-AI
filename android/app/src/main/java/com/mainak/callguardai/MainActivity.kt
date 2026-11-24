@@ -226,7 +226,7 @@ class MainActivity : ComponentActivity() {
         }
         switchRow.addView(vipRingSwitch, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         vipCard.addView(switchRow, matchWrap().apply { topMargin = dp(10) })
-        vipCard.addView(label("Requires Phone state permission and Android Notification Policy Access. Do Not Disturb is not bypassed. SMS permission is not needed for call screening.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
+        vipCard.addView(label("Requires Contacts and Phone state permissions plus Android Notification Policy Access. Do Not Disturb is not bypassed. SMS permission is not needed.", "#8A5A18", 12, false), matchWrap().apply { topMargin = dp(8) })
         content.addView(vipCard, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Your rules"), matchWrap().apply { topMargin = dp(24) })
