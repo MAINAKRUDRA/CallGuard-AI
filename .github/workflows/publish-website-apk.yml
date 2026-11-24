@@ -1,0 +1,64 @@
+name: Publish APK to Website
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "android/**"
+      - "gradle/**"
+      - "gradlew"
+      - "settings.gradle.kts"
+      - "build.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/publish-website-apk.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-website-apk
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Run unit tests
+        run: gradle :android:app:testDebugUnitTest
+
+      - name: Build debug APK
+        run: gradle :android:app:assembleDebug
+
+      - name: Publish APK into website
+        run: |
+          mkdir -p website/downloads
+          cp android/app/build/outputs/apk/debug/app-debug.apk website/downloads/callguard-ai.apk
+
+      - name: Commit APK to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/downloads/callguard-ai.apk
+          if git diff --cached --quiet; then
+            echo "APK is already up to date."
+          else
+            git commit -m "Publish latest CallGuard AI website APK"
+            git push origin HEAD:main
+          fi
