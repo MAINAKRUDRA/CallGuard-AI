@@ -13,7 +13,7 @@ data class CallEvent(
     val reason: String
 )
 
-class CallEventStore(context: Context) : SQLiteOpenHelper(context, "callguard.db", null, 1) {
+class CallEventStore(context: Context) : SQLiteOpenHelper(context, "callguard.db", null, DATABASE_VERSION) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE call_events (
@@ -24,10 +24,19 @@ class CallEventStore(context: Context) : SQLiteOpenHelper(context, "callguard.db
                 reason TEXT NOT NULL
             )
         """.trimIndent())
+        db.execSQL("CREATE INDEX index_call_events_timestamp ON call_events(timestamp DESC)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Add explicit, forward-only migrations here before incrementing DB version.
+        // Forward-only migrations. Version 1 already contains call_events.
+        if (oldVersion < 2) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_call_events_timestamp ON call_events(timestamp DESC)")
+        }
+    }
+
+    override fun onOpen(db: SQLiteDatabase) {
+        super.onOpen(db)
+        prune(db)
     }
 
     fun insert(timestamp: Long, number: String?, action: String, reason: String) {
@@ -37,23 +46,22 @@ class CallEventStore(context: Context) : SQLiteOpenHelper(context, "callguard.db
             put("action", action)
             put("reason", reason)
         }
-        writableDatabase.insert("call_events", null, values)
+        writableDatabase.insertOrThrow("call_events", null, values)
+        prune(writableDatabase)
     }
 
     fun latest(limit: Int = 50): List<CallEvent> {
+        val safeLimit = limit.coerceIn(1, MAX_EVENTS)
         val events = mutableListOf<CallEvent>()
         readableDatabase.query(
             "call_events",
             arrayOf("id", "timestamp", "number", "action", "reason"),
-            null, null, null, null, "timestamp DESC", limit.toString()
+            null, null, null, null, "timestamp DESC", safeLimit.toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 events += CallEvent(
-                    cursor.getLong(0),
-                    cursor.getLong(1),
-                    cursor.getString(2),
-                    cursor.getString(3),
-                    cursor.getString(4)
+                    cursor.getLong(0), cursor.getLong(1), cursor.getString(2),
+                    cursor.getString(3), cursor.getString(4)
                 )
             }
         }
@@ -62,5 +70,22 @@ class CallEventStore(context: Context) : SQLiteOpenHelper(context, "callguard.db
 
     fun clearHistory() {
         writableDatabase.delete("call_events", null, null)
+    }
+
+    private fun prune(db: SQLiteDatabase) {
+        val cutoff = System.currentTimeMillis() - RETENTION_MS
+        db.delete("call_events", "timestamp < ?", arrayOf(cutoff.toString()))
+        db.execSQL("""
+            DELETE FROM call_events
+            WHERE id NOT IN (
+                SELECT id FROM call_events ORDER BY timestamp DESC LIMIT $MAX_EVENTS
+            )
+        """.trimIndent())
+    }
+
+    private companion object {
+        const val DATABASE_VERSION = 2
+        const val MAX_EVENTS = 1000
+        const val RETENTION_MS = 90L * 24 * 60 * 60 * 1000
     }
 }
