@@ -42,6 +42,18 @@ object ContactImporter {
         return imported
     }
 
+    /** Adds only the phone number explicitly selected by the user to the VIP allow-list. */
+    fun addSelected(context: Context, name: String, rawNumber: String): Boolean {
+        val canonical = CallGuardPolicy.normalizeNumber(rawNumber, CallGuardPolicy.selectedRegion(context))
+            ?: return false
+        if (!CallGuardPolicy.addAllow(context, canonical)) return false
+        if (name.isNotBlank()) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putString(canonical, name.trim()).apply()
+        }
+        return true
+    }
+
     fun displayName(context: Context, canonicalNumber: String): String? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(canonicalNumber, null)
