@@ -2,7 +2,7 @@
 
 Android-first call screening and personal call management.
 
-> **Current scope:** Phase 1 MVP — local incoming-call screening, contacts/VIP allow-list, explicit allow/block rules, explainable decisions, and a private activity log. The AI receptionist is a separate later phase that requires a supported carrier-forwarding or SIP/VoIP audio route.
+> **Current scope:** Phase 1 MVP — local incoming-call screening, contacts/VIP allow-list, explicit allow/block rules, explainable decisions, and a private activity log. The AI receptionist is a separate later phase requiring a supported carrier-forwarding or SIP/VoIP audio route.
 
 ## Product principles
 
@@ -10,56 +10,64 @@ Android-first call screening and personal call management.
 - **VIP protection:** explicit allow/VIP rules take priority over block rules.
 - **Explainability:** every screening decision records a rule/reason.
 - **Local-first privacy:** screening policy and event data stay on-device in the MVP.
-- **Reversible decisions:** users can undo a block and allow a number.
 - **No false AI claims:** ordinary Android apps do not receive general cellular call audio. Live AI answering is not part of this MVP.
 
-## MVP feature plan
+## Security and number handling
 
-1. Android role onboarding for `ROLE_CALL_SCREENING`.
-2. Kotlin `CallScreeningService` with a bounded deterministic policy.
-3. Number normalization and explicit allow/block rules.
-4. Contact/VIP allow-list (only after the user grants the required permission).
-5. Local call decision history and reason labels.
-6. Manual override and tests for policy priority and safe fallback.
+- Allow/block rules are stored as a single AES-256-GCM authenticated ciphertext.
+- The AES key is generated and retained in Android Keystore; it is not stored in app preferences.
+- Existing plaintext SharedPreferences rules are migrated on first read; legacy keys are removed only after the encrypted write succeeds.
+- Phone numbers are validated and canonicalized to E.164 using Google's libphonenumber.
+- Local-format input uses the device locale's two-letter country region. International numbers beginning with + are parsed independently of the device region.
+- The default region is inferred from device locale, not selected in app settings. Use +countrycode... when the device region differs from the number's region.
+- Call history stores masked numbers, retains at most 1,000 events, and deletes events older than 90 days. The history database itself is app-private but not encrypted.
 
 ## Technical baseline
 
-- Native Android / Kotlin
-- Gradle Kotlin DSL
-- Room for persistent local data (introduced with the storage implementation)
-- Android Telecom `CallScreeningService`
-- Android Keystore for sensitive local data if/when encrypted fields are persisted
+- Native Android / Kotlin, API 35 target, API 26 minimum
+- Android Telecom CallScreeningService
+- Android Keystore AES-256-GCM
+- Google libphonenumber
+- SQLiteOpenHelper with forward-only schema migrations
 
-## Build
+## Build and test
 
-Open the `android/` project in Android Studio with a compatible Android SDK installed. The first implementation targets Android API 35 and a minimum API level of 26. Generate the Gradle wrapper from a local Gradle installation if it is not already present:
+From the repository root with Android SDK 35 installed:
 
 ```bash
-gradle wrapper
-./gradlew :app:assembleDebug
+gradle :android:app:testDebugUnitTest
+gradle :android:app:assembleDebug
 ```
 
-## Important platform limitations
+GitHub Actions runs unit tests and builds a debug APK on pushes and pull requests to main. A separate API 35 emulator job installs and launches the app. Download the callguard-debug-apk artifact from a successful workflow run.
 
-- The screening service must respond within Android's documented callback deadline. Keep the decision path local and bounded; persistence must not delay the Telecom response.
+For a local device smoke test, enable Developer options and USB debugging, connect an Android 10+ device, then run:
+
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb shell monkey -p com.mainak.callguardai 1
+```
+
+Grant the Call Screening role inside the app and test with a second phone. Confirm allow, block, unknown-caller fallback, and contact import behavior on the target OEM/device. An emulator launch does not prove real cellular call screening on every OEM.
+
+## Platform and security limitations
+
+- The screening service must respond within Android's callback deadline. Persistence is performed after the Telecom response.
+- If the Keystore key is invalidated or app data is restored without its key, encrypted rules cannot be decrypted. The app reports a storage error rather than silently replacing rules.
 - Restricted/private caller presentations may not expose a number to the screening callback.
-- DND, silent-mode, physical alert switches, and VIP alert overrides vary by Android version and OEM. They are not promised by this MVP.
+- DND, silent-mode, physical alert switches, and VIP alert overrides vary by Android version and OEM.
 - A third-party app cannot generally capture both sides of an ordinary cellular call. AI receptionist functionality requires a separately validated telephony bridge.
-
-## Security
+- Activity history uses masked numbers but SQLite is not encrypted in this phase.
 
 Never commit API keys, signing credentials, real call records, contact exports, or production secrets. Do not put privileged backend tokens in the APK. Use synthetic data in tests and demos.
 
 ## Status
-
-## Current implementation status
 
 ### Phase 1A — screening foundation
 - [x] Android screening-role onboarding
 - [x] Kotlin screening callback
 - [x] Allow-first deterministic policy
 - [x] Explicit allow/block rules with VIP precedence
-- [x] Number normalization unit tests
 
 ### Phase 1B — usable MVP controls
 - [x] Manual add/remove for allow and block rules
@@ -67,10 +75,15 @@ Never commit API keys, signing credentials, real call records, contact exports, 
 - [x] Local SQLite screening activity history
 - [x] Caller numbers masked in activity history
 - [x] Clear local activity history
-- [ ] Encrypt locally stored allow/block rules
-- [ ] Country-aware phone number canonicalization
-- [ ] Device/emulator verification and CI result review
 
-The current allow/block rules are stored in app-private SharedPreferences and are not yet encrypted. Activity history stores masked caller numbers. Treat this build as a development prototype until encryption, device testing, and privacy review are complete.
+### Phase 1C — security and reliability
+- [x] AES-256-GCM encrypted rules using Android Keystore
+- [x] Migration from legacy plaintext rule preferences
+- [x] E.164 normalization using libphonenumber
+- [x] SQLite schema version 2 migration and timestamp index
+- [x] 90-day retention and 1,000-event cap
+- [x] Allow-first callback fallback on rule-store errors
+- [ ] Verify GitHub Actions results
+- [ ] Verify real call screening on physical Android devices
 
-Repository initialized and Phase 1B implementation committed. No production-readiness or device-compatibility claim is made yet.
+**Validation status:** source changes are committed, but no successful build, emulator run, or physical-device call test is claimed until the new workflow completes and device tests are performed.
