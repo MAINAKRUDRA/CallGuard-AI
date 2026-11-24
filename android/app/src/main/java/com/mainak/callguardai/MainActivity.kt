@@ -323,10 +323,10 @@ class MainActivity : FragmentActivity() {
             } else showStatus("Enter a supported two-letter country code, such as IN or US.")
         }, matchWrap().apply { topMargin = dp(10) })
 
-        settingsCard.addView(label("Fingerprint app lock", "#172B45", 16, true), matchWrap().apply { topMargin = dp(18) })
+        settingsCard.addView(label("Biometric app lock", "#172B45", 16, true), matchWrap().apply { topMargin = dp(18) })
         settingsCard.addView(label("Require Android biometric authentication before opening your CallGuard rules and activity. Fingerprint data stays with Android and is never collected by CallGuard.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
         biometricLockSwitch = Switch(this).apply {
-            text = "Require fingerprint to open app"
+            text = "Require biometrics to open app"
             textSize = 14f
             setTextColor(Color.rgb(34, 57, 83))
             isChecked = isBiometricLockEnabled()
@@ -340,7 +340,7 @@ class MainActivity : FragmentActivity() {
                         setBiometricLockEnabled(enabled)
                         biometricLockSwitch.isChecked = enabled
                         biometricLockSwitch.isEnabled = true
-                        showStatus(if (enabled) "Fingerprint app lock enabled." else "Fingerprint app lock disabled.")
+                        showStatus(if (enabled) "Biometric app lock enabled." else "Biometric app lock disabled.")
                     },
                     onFailure = { message ->
                         biometricLockSwitch.setOnCheckedChangeListener(null)
@@ -408,7 +408,7 @@ class MainActivity : FragmentActivity() {
                 setBiometricLockEnabled(enabled)
                 biometricLockSwitch.isChecked = enabled
                 biometricLockSwitch.isEnabled = true
-                showStatus(if (enabled) "Fingerprint app lock enabled." else "Fingerprint app lock disabled.")
+                showStatus(if (enabled) "Biometric app lock enabled." else "Biometric app lock disabled.")
             },
             onFailure = { message ->
                 biometricLockSwitch.setOnCheckedChangeListener(null)
@@ -427,15 +427,15 @@ class MainActivity : FragmentActivity() {
             setPadding(dp(28), dp(28), dp(28), dp(28))
             setBackgroundColor(Color.rgb(10, 28, 48))
         }
-        val message = label("CALLGUARD AI\n\nApp locked\nAuthenticate with your fingerprint to continue.", "#FFFFFF", 20, true).apply {
+        val message = label("CALLGUARD AI\n\nApp locked\nAuthenticate with your device biometric to continue.", "#FFFFFF", 20, true).apply {
             gravity = Gravity.CENTER
             textAlignment = View.TEXT_ALIGNMENT_CENTER
         }
         root.addView(message, matchWrap())
-        root.addView(actionButton("Unlock with fingerprint", true) {
+        root.addView(actionButton("Unlock with biometrics", true) {
             authenticateBiometric(
                 "Unlock CallGuard AI",
-                "Authenticate with your enrolled fingerprint.",
+                "Authenticate with an enrolled strong biometric.",
                 onSuccess = { appUnlocked = true; buildScreen(); refreshScreen() },
                 onFailure = { message.text = "Authentication required.\n$message" }
             )
@@ -444,7 +444,7 @@ class MainActivity : FragmentActivity() {
         root.post {
             authenticateBiometric(
                 "Unlock CallGuard AI",
-                "Authenticate with your enrolled fingerprint.",
+                "Authenticate with an enrolled strong biometric.",
                 onSuccess = { buildScreen(); refreshScreen() },
                 onFailure = { message.text = "Authentication required. Tap below to try again." }
             )
@@ -463,7 +463,7 @@ class MainActivity : FragmentActivity() {
             val reason = when (availability) {
                 BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "This device has no supported biometric sensor."
                 BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "The biometric sensor is temporarily unavailable."
-                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "Enroll a fingerprint in Android device security before enabling app lock."
+                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "Enroll a supported strong biometric in Android device security before enabling app lock."
                 BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "Update Android security before using biometric authentication."
                 else -> "Strong biometric authentication is not currently available on this device."
             }
