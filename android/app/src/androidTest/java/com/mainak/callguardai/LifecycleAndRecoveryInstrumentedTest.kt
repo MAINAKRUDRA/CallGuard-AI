@@ -189,12 +189,12 @@ class LifecycleAndRecoveryInstrumentedTest {
         try {
             ActivityScenario.launch(MainActivity::class.java).use { scenario ->
                 instrumentation.waitForIdleSync()
-                onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
+                onView(withText("Unlock with biometrics"))
                     .check(matches(isDisplayed()))
 
                 scenario.recreate()
                 instrumentation.waitForIdleSync()
-                onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
+                onView(withText("Unlock with biometrics"))
                     .check(matches(isDisplayed()))
                 assertTrue(security.getBoolean("biometric_lock_enabled", false))
             }
