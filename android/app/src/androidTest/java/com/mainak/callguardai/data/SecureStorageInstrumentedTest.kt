@@ -60,4 +60,23 @@ class SecureStorageInstrumentedTest {
             store.close()
         }
     }
+    @Test fun callHistoryIsCappedAtOneThousandAndCanBeCleared() {
+        context.deleteDatabase("callguard.db")
+        val store = CallEventStore(context)
+        try {
+            repeat(1_005) { index ->
+                store.insert(
+                    System.currentTimeMillis() + index,
+                    "••••" + (1000 + index).toString().takeLast(4),
+                    "ALLOW",
+                    "test-event"
+                )
+            }
+            assertEquals(1_000, store.latest(1_000).size)
+            store.clearHistory()
+            assertTrue(store.latest(1_000).isEmpty())
+        } finally {
+            store.close()
+        }
+    }
 }
