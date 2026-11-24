@@ -437,7 +437,7 @@ class MainActivity : FragmentActivity() {
                 "Unlock CallGuard AI",
                 "Authenticate with an enrolled strong biometric.",
                 onSuccess = { appUnlocked = true; buildScreen(); refreshScreen() },
-                onFailure = { message.text = "Authentication required.\n$message" }
+                onFailure = { error -> message.text = "Authentication required.\n$error" }
             )
         }, matchWrap().apply { topMargin = dp(22) })
         setContentView(root)
