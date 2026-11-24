@@ -25,41 +25,70 @@ Phase 3 is development-only. Continue on `phase-2-security-hardening` and the ex
 
 ## 3B — Layout and device compatibility
 
-- [ ] Check compact phones, large phones, tablets, portrait, and landscape.
+- [x] Add an automated landscape-orientation dashboard smoke test.
+- [ ] Check compact phones (320–360 dp), large phones, tablets, portrait, and landscape on hardware/emulators.
 - [ ] Check Android 10 through Android 16 where available.
-- [ ] Verify system font/display scaling and edge-to-edge/inset behavior.
+- [ ] Verify system font/display scaling at 1.0x, 1.3x, and 2.0x.
+- [ ] Verify edge-to-edge/inset behavior on Android 15/16 devices.
 - [ ] Confirm permission prompts and role selection return to a correct, refreshed state.
-- [ ] Test permission revocation from Android Settings while the app is backgrounded.
+- [x] Add an instrumentation regression for Contacts permission revocation; verify VIP ring override fails closed on next Activity resume.
+- [ ] Verify Notification Policy Access revocation while VIP override is enabled on a physical device.
 
 ## 3C — Lifecycle and workflow regression
 
-- [ ] Test process death and relaunch with biometric lock enabled and disabled.
-- [ ] Test reboot, app update, and app data/Keystore mismatch recovery.
-- [ ] Verify call-screening role loss and re-grant behavior.
-- [ ] Verify Contacts and Notification Policy Access revocation while VIP override is enabled.
-- [x] Add initial automated UI checks for dashboard summary controls and accessibility labels.
-- [x] Add interaction tests for allow/block creation, normalized persistence, invalid-number rejection, and allow-rule removal.
-- [x] Add automated coverage for block-rule removal through the saved-rules management dialog.
-- [ ] Add automated checks for region settings, history clearing, and biometric gate states where the Android test environment supports them.
+- [x] Add biometric gate persistence coverage across Activity recreation and a force-stopped process relaunch.
+- [ ] Verify biometric prompt behavior after an actual device reboot, lock-screen credential changes, and biometric enrollment changes.
+- [ ] Test app update and app data/Keystore mismatch recovery on hardware.
+- [ ] Verify call-screening role loss and re-grant behavior on hardware.
+- [x] Add history clearing UI regression; verify the activity list clears and allow/block rules remain intact.
+- [x] Add encrypted history retention/cap/clear regression coverage in storage instrumentation tests.
+- [x] Add automated region settings validation and persistence checks.
+- [x] Add interaction tests for allow/block creation, normalized persistence, invalid-number rejection, and allow/block removal.
+- [ ] Exercise revocation of every runtime/special access (Contacts, Phone state, Notification Policy Access, Call Screening role) and verify recovery without reinstalling.
+
+## 3D — Physical manufacturer validation (not executable in hosted CI)
+
+Run the full matrix with a real SIM and at least one current device from each available family. Record model, Android version, security patch, build SHA, result, and evidence for every row.
+
+| Manufacturer / software | Required checks | Status |
+|---|---|---|
+| Google Pixel / AOSP | Call screening role, incoming calls, reboot, biometric gate, TalkBack, font scaling | Not run — physical device required |
+| Samsung / One UI | Role priority, battery/background restrictions, DND/ringer restore, permission revocation | Not run — physical device required |
+| Xiaomi / Redmi / POCO / HyperOS or MIUI | Autostart/background restrictions, call screening delivery, DND/ringer restore | Not run — physical device required |
+| Motorola / near-stock Android | Call screening, process recreation, ringer restore | Not run — physical device required |
+| OnePlus / OPPO / ColorOS/OxygenOS | Background restrictions, role handling, call delivery, restore behavior | Not run — physical device required |
+
+For every device, test:
+1. Set CallGuard as the Android Call Screening app; verify Android's role confirmation and role status.
+2. Receive allowed, blocked, unknown, private, malformed, and saved-contact calls with screen on/off.
+3. Verify a VIP call can temporarily override Silent/Vibrate/DND only when opted in and permissions are granted.
+4. Change ringer/DND manually during a call; confirm CallGuard does not overwrite the newer user choice.
+5. Revoke Contacts and Phone state permissions in Settings; verify VIP override turns off and app remains usable.
+6. Revoke Notification Policy Access and the Call Screening role; verify clear status and recovery after re-grant.
+7. Force-stop, relaunch, reboot, update, and test biometric lock and encrypted history preservation.
+8. Run TalkBack and 1.0x / 1.3x / 2.0x font scaling; inspect portrait, landscape, compact display, and touch targets.
+
+Do not mark a manufacturer row complete without physical evidence. Hosted Android emulators cannot validate OEM telephony stacks, vendor battery managers, SIM/carrier behavior, or OEM-specific DND restrictions.
 
 ## Current implementation notes
 
-The first accessibility pass is committed in `MainActivity.kt`: section titles expose heading semantics on API 28+, status/history changes use polite accessibility live regions, phone-number and region inputs have explicit descriptions, and the saved-rules activation area is keyboard-focusable with a 48 dp minimum height. The dashboard summary now uses a more flexible two-column layout, the stat cards can grow vertically with larger text, and preference switches expose explicit accessibility descriptions.
+The accessibility pass in `MainActivity.kt` marks section titles as headings on API 28+, uses polite live regions for status/history, labels phone-number and region inputs, and provides explicit switch descriptions and 48 dp minimum touch heights. Dashboard statistic cards reflow into a two-column rules row plus a full-width activity row and can grow vertically with larger text.
 
-`RuleManagementInstrumentedTest.kt` adds Espresso coverage for adding an allow rule, adding a block rule, checking normalized encrypted persistence, rejecting an invalid number, removing an allow rule, and unblocking a saved number through the management dialog. These tests are added but are not considered passing until the current commit's emulator CI job completes.
+`RuleManagementInstrumentedTest.kt` covers allow/block creation, normalized persistence, invalid-number rejection, allow removal, block removal, and region validation. `SecureStorageInstrumentedTest.kt` covers encrypted history retention, the 1,000-event cap, clearing, missing-key preservation, and legacy migration. `LifecycleAndRecoveryInstrumentedTest.kt` adds permission-revocation fail-closed behavior, biometric lock persistence across Activity recreation and force-stop/relaunch, history-clear UI behavior while preserving rules, and a landscape dashboard smoke test.
 
-These source changes are not yet a claim of full accessibility conformance. TalkBack, large-font, touch-target, and OEM validation remain open until tested on actual devices.
+These are test definitions, not passing results. They must pass in CI on the exact commit. Physical TalkBack, large-font, reboot, telephony, DND, and OEM validation remain open.
 
 ## Validation record
 
 | Check | Status | Evidence |
 |---|---|---|
-| JVM unit tests | Passed on Phase 3 docs snapshot | CI run 45496191687; current head requires a new run after interaction-test commits |
-| Debug APK assembly | In progress on Phase 3 docs snapshot | CI run 45496191687 |
-| API 35 emulator smoke | In progress on Phase 3 docs snapshot | CI run 45496191687 |
-| Dashboard Espresso UI checks | Added; awaiting current CI result | `DashboardAccessibilityInstrumentedTest.kt` |
-| Rule interaction Espresso checks | Added; awaiting current CI result | `RuleManagementInstrumentedTest.kt` (allow/block create, allow removal, block removal, validation) |
-| TalkBack / font scaling | Not tested | Physical device required |
-| OEM call screening / VIP ring override | Not tested | Physical SIM/device tests required |
+| JVM unit tests | Awaiting latest head CI | Latest test additions require a completed run |
+| Debug APK assembly | Awaiting latest head CI | Latest test additions require a completed run |
+| API 35 emulator smoke | Awaiting latest head CI | Latest test additions require a completed run |
+| Dashboard and rule Espresso checks | Added; awaiting CI | `DashboardAccessibilityInstrumentedTest.kt`, `RuleManagementInstrumentedTest.kt` |
+| Permission revocation / biometric process relaunch / landscape | Added; awaiting CI | `LifecycleAndRecoveryInstrumentedTest.kt` |
+| History retention, cap, missing key, migration, clear | Added; awaiting CI | `SecureStorageInstrumentedTest.kt` |
+| TalkBack / font scaling / compact-screen validation | Not verified | Physical device required |
+| Reboot / SIM telephony / OEM call screening and VIP restore | Not verified | Physical device required |
 
 Do not close a validation item without current evidence for the exact commit under test.
