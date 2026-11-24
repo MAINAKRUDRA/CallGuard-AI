@@ -8,7 +8,12 @@ import java.util.concurrent.Executors
 
 class CallGuardScreeningService : CallScreeningService() {
     override fun onScreenCall(callDetails: Call.Details) {
-        val decision = CallGuardPolicy.evaluate(this, callDetails.handle)
+        val decision = try {
+            CallGuardPolicy.evaluate(this, callDetails.handle)
+        } catch (error: RuntimeException) {
+            Log.e(TAG, "Rule evaluation failed; applying allow-first fallback", error)
+            ScreeningDecision(ScreeningAction.ALLOW, "Rule storage unavailable; safe allow fallback")
+        }
         val response = CallResponse.Builder()
             .setDisallowCall(decision.action == ScreeningAction.REJECT)
             .setRejectCall(decision.action == ScreeningAction.REJECT)
@@ -16,25 +21,22 @@ class CallGuardScreeningService : CallScreeningService() {
             .setSkipCallLog(false)
             .setSkipNotification(false)
             .build()
-
         try {
-            // Respond immediately; persistence is deliberately outside the Telecom deadline path.
             respondToCall(callDetails, response)
-            val number = CallGuardPolicy.normalizeNumber(callDetails.handle?.schemeSpecificPart)
-            io.execute {
-                runCatching {
-                    val store = CallEventStore(applicationContext)
-                    try {
-                        store.insert(System.currentTimeMillis(), maskNumber(number), decision.action.name, decision.reason)
-                    } finally {
-                        store.close()
-                    }
-                }.onFailure { Log.e(TAG, "Could not save call event", it) }
-            }
-            Log.i(TAG, "Screening decision=" + decision.action + "; reason=" + decision.reason)
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to submit screening response", error)
+            return
         }
+        val number = CallGuardPolicy.normalizeNumber(callDetails.handle?.schemeSpecificPart)
+        io.execute {
+            runCatching {
+                val store = CallEventStore(applicationContext)
+                try {
+                    store.insert(System.currentTimeMillis(), maskNumber(number), decision.action.name, decision.reason)
+                } finally { store.close() }
+            }.onFailure { Log.e(TAG, "Could not save call event", it) }
+        }
+        Log.i(TAG, "Screening decision=" + decision.action + "; reason=" + decision.reason)
     }
 
     private fun maskNumber(number: String?): String {
