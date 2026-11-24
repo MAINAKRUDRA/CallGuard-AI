@@ -58,19 +58,27 @@ class LifecycleAndRecoveryInstrumentedTest {
     }
 
     @Test
-    fun biometricLockRemainsEnabledAcrossActivityRecreation() {
+    fun biometricLockRemainsEnabledAcrossActivityRecreationAndProcessRestart() {
         val security = context.getSharedPreferences("callguard_app_security", 0)
         val original = security.getBoolean("biometric_lock_enabled", false)
         security.edit().putBoolean("biometric_lock_enabled", true).commit()
         try {
-            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-                instrumentation.waitForIdleSync()
-                onView(withText("CALLGUARD AI\n\nApp locked\nAuthenticate with your device biometric to continue."))
-                    .check(matches(isDisplayed()))
+            val firstLaunch = ActivityScenario.launch(MainActivity::class.java)
+            instrumentation.waitForIdleSync()
+            onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
+                .check(matches(isDisplayed()))
 
-                scenario.recreate()
+            firstLaunch.recreate()
+            instrumentation.waitForIdleSync()
+            onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
+                .check(matches(isDisplayed()))
+            firstLaunch.close()
+
+            // Force-stop the target app process, then launch a fresh process.
+            shell("am force-stop ${context.packageName}")
+            ActivityScenario.launch(MainActivity::class.java).use {
                 instrumentation.waitForIdleSync()
-                onView(withText("CALLGUARD AI\n\nApp locked\nAuthenticate with your device biometric to continue."))
+                onView(withText("CALLGUARD AI\\n\\nApp locked\\nAuthenticate with your device biometric to continue."))
                     .check(matches(isDisplayed()))
                 assertTrue(security.getBoolean("biometric_lock_enabled", false))
             }
@@ -122,7 +130,7 @@ class LifecycleAndRecoveryInstrumentedTest {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             }
             instrumentation.waitForIdleSync()
-            onView(withText("Manage a phone number")).check(matches(isDisplayed()))
+            onView(withText("Manage a phone number")).perform(scrollTo()).check(matches(isDisplayed()))
             onView(withText("Recent screening activity")).perform(scrollTo()).check(matches(isDisplayed()))
         }
     }
