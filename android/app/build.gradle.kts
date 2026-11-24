@@ -1,13 +1,13 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
 val callguardBuildNumber = providers.environmentVariable("CALLGUARD_BUILD_NUMBER")
     .orElse(providers.gradleProperty("callguardBuildNumber"))
     .orElse("1")
     .get()
     .toInt()
-
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-}
 
 android {
     namespace = "com.mainak.callguardai"
