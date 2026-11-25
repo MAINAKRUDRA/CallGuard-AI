@@ -279,7 +279,7 @@ class MainActivity : FragmentActivity() {
         content.addView(sectionTitle("VIP ring override"), matchWrap().apply { topMargin = dp(24) })
         val vipCard = card()
         vipCard.addView(label("Let VIP callers ring through Silent / Vibrate / DND", "#172B45", 16, true))
-        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches Silent/Vibrate to Ring and pauses the active Do Not Disturb filter. It restores the saved phone modes after the call ends. This requires Android permissions and may be restricted by some devices.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches Silent/Vibrate to Ring, raises a zero or very-low ringtone volume to at least 50%, and pauses active Do Not Disturb. It restores the previous ringer mode and volume after the call unless you change them yourself. Android or some phone manufacturers may still restrict this feature.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
         ringerStatus = label("Current phone mode: checking…", "#245A9B", 12, true).apply {
             background = rounded("#EAF1FC", 10)
             setPadding(dp(10), dp(9), dp(10), dp(9))
