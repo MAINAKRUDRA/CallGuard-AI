@@ -71,8 +71,8 @@ object VipRingerOverride {
             currentFilter == NotificationManager.INTERRUPTION_FILTER_ALARMS
         val needsDndChange = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && knownDndFilter
 
-        if (!needsRingerChange && !needsDndChange && !needsVolumeChange) return false
-
+        // Keep a call-scoped snapshot even if the phone is already in Ring mode.
+        // Telecom or an OEM may re-apply Silent/Vibrate after the screening response.
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val wasPending = prefs.getBoolean(KEY_PENDING, false)
         val editor = prefs.edit()
@@ -119,6 +119,14 @@ object VipRingerOverride {
             restoreOriginalMode(context)
             false
         }
+    }
+
+    /** Re-apply only when the screening service has already marked this call as VIP. */
+    @Synchronized
+    fun reassertForPendingVipCall(context: Context): Boolean {
+        val pending = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_PENDING, false)
+        return pending && onVipIncomingCall(context)
     }
 
     @Synchronized
