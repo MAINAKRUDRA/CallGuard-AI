@@ -20,7 +20,7 @@ object CallRuleEvaluator {
             return ScreeningDecision(ScreeningAction.ALLOW, "Explicit allow rule", "allow")
         }
         if (number in blockedNumbers) {
-            return ScreeningDecision(ScreeningAction.REJECT, "Explicit user block rule", "block")
+            return ScreeningDecision(ScreeningAction.REJECT, "Number is in the local user-reported spam/block list", "block")
         }
         return ScreeningDecision(
             ScreeningAction.ALLOW,
