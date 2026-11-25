@@ -44,15 +44,20 @@ class CallGuardScreeningService : CallScreeningService() {
             return
         }
         if (isExplicitVipIncomingCall) {
-            // Telecom/OEM call handling can re-apply the previous ringer mode
-            // immediately after the screening response. Re-assert once while
-            // the call is still ringing; do not keep fighting later user changes.
-            Handler(Looper.getMainLooper()).postDelayed({
-                val telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                if (telephony.callState == TelephonyManager.CALL_STATE_RINGING) {
-                    VipRingerOverride.reassertForPendingVipCall(this)
-                }
-            }, VIP_RING_REASSERT_DELAY_MS)
+            // OxygenOS/ColorOS and some Telecom implementations can re-apply
+            // Alert Slider / prior ringer state shortly after the screening
+            // callback. Retry briefly while the same VIP call is still ringing.
+            // reassertForPendingVipCall checks the saved snapshot before acting,
+            // so a newer user-selected mode or volume is never overwritten.
+            val handler = Handler(Looper.getMainLooper())
+            VIP_RING_REASSERT_DELAYS_MS.forEach { delay ->
+                handler.postDelayed({
+                    val telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                    if (telephony.callState == TelephonyManager.CALL_STATE_RINGING) {
+                        VipRingerOverride.reassertForPendingVipCall(this)
+                    }
+                }, delay)
+            }
         }
         val number = CallGuardPolicy.normalizeNumber(
             callDetails.handle?.schemeSpecificPart,
@@ -111,7 +116,7 @@ class CallGuardScreeningService : CallScreeningService() {
     private companion object {
         const val TAG = "CallGuardScreening"
         const val EVALUATION_TIMEOUT_MS = 1_500L
-        const val VIP_RING_REASSERT_DELAY_MS = 300L
+        val VIP_RING_REASSERT_DELAYS_MS = longArrayOf(250L, 700L, 1_500L, 3_000L)
         val evaluator = ThreadPoolExecutor(
             1, 1, 0L, TimeUnit.MILLISECONDS,
             SynchronousQueue(),
