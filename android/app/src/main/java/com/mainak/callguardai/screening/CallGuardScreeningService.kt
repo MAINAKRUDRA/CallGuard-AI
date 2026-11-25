@@ -1,6 +1,9 @@
 package com.mainak.callguardai.screening
 
 import android.telecom.Call
+import android.os.Handler
+import android.os.Looper
+import android.telephony.TelephonyManager
 import android.telecom.CallScreeningService
 import android.util.Log
 import com.mainak.callguardai.data.CallEventStore
@@ -15,9 +18,10 @@ import java.util.concurrent.TimeoutException
 class CallGuardScreeningService : CallScreeningService() {
     override fun onScreenCall(callDetails: Call.Details) {
         val decision = evaluateWithinDeadline(callDetails)
-        if (callDetails.callDirection == Call.Details.DIRECTION_INCOMING &&
-            decision.action == ScreeningAction.ALLOW && decision.matchedRule == "allow"
-        ) {
+        val isExplicitVipIncomingCall =
+            callDetails.callDirection == Call.Details.DIRECTION_INCOMING &&
+                decision.action == ScreeningAction.ALLOW && decision.matchedRule == "allow"
+        if (isExplicitVipIncomingCall) {
             val changed = VipRingerOverride.onVipIncomingCall(this)
             if (changed) Log.i(TAG, "VIP ring override activated; original ringer mode will be restored when the call ends")
         }
@@ -33,6 +37,17 @@ class CallGuardScreeningService : CallScreeningService() {
         } catch (_: RuntimeException) {
             Log.e(TAG, "Unable to submit screening response")
             return
+        }
+        if (isExplicitVipIncomingCall) {
+            // Telecom/OEM call handling can re-apply the previous ringer mode
+            // immediately after the screening response. Re-assert once while
+            // the call is still ringing; do not keep fighting later user changes.
+            Handler(Looper.getMainLooper()).postDelayed({
+                val telephony = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                if (telephony.callState == TelephonyManager.CALL_STATE_RINGING) {
+                    VipRingerOverride.onVipIncomingCall(this)
+                }
+            }, VIP_RING_REASSERT_DELAY_MS)
         }
         val number = CallGuardPolicy.normalizeNumber(
             callDetails.handle?.schemeSpecificPart,
@@ -91,6 +106,7 @@ class CallGuardScreeningService : CallScreeningService() {
     private companion object {
         const val TAG = "CallGuardScreening"
         const val EVALUATION_TIMEOUT_MS = 1_500L
+        const val VIP_RING_REASSERT_DELAY_MS = 300L
         val evaluator = ThreadPoolExecutor(
             1, 1, 0L, TimeUnit.MILLISECONDS,
             SynchronousQueue(),
