@@ -47,6 +47,14 @@ class VipRingerOverrideInstrumentedTest {
             assumeTrue("Test device must grant VIP override permissions", VipRingerOverride.hasRequiredAccess(context))
 
             VipRingerOverride.setEnabled(context, true)
+            audio.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
+            audio.ringerMode = AudioManager.RINGER_MODE_SILENT
+            assertTrue(
+                "A non-VIP call must not activate the override without a screening-service VIP snapshot",
+                !VipRingerOverride.reassertForPendingVipCall(context)
+            )
+            assertEquals(AudioManager.RINGER_MODE_SILENT, audio.ringerMode)
+
             for (silentMode in listOf(AudioManager.RINGER_MODE_SILENT, AudioManager.RINGER_MODE_VIBRATE)) {
                 audio.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
                 audio.ringerMode = silentMode
