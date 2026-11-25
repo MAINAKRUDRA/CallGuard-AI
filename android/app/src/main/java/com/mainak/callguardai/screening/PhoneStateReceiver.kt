@@ -9,8 +9,13 @@ class PhoneStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
-        if (state == TelephonyManager.EXTRA_STATE_IDLE) {
-            VipRingerOverride.restoreOriginalMode(context)
+        when (state) {
+            TelephonyManager.EXTRA_STATE_RINGING -> {
+                // Only reassert when CallScreeningService has already marked this
+                // exact incoming call as an explicit VIP match.
+                VipRingerOverride.reassertForPendingVipCall(context)
+            }
+            TelephonyManager.EXTRA_STATE_IDLE -> VipRingerOverride.restoreOriginalMode(context)
         }
     }
 }
