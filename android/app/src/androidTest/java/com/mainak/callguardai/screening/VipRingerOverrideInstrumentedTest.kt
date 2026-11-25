@@ -62,6 +62,17 @@ class VipRingerOverrideInstrumentedTest {
                         VipRingVolumePolicy.minimumAudibleVolume(audio.getStreamMaxVolume(AudioManager.STREAM_RING))
                 )
 
+                // Simulate Telecom/OEM restoring the prior mode after the screening
+                // response. A marked VIP call must be reasserted; non-VIP calls are not.
+                audio.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
+                audio.ringerMode = silentMode
+                assertTrue(VipRingerOverride.reassertForPendingVipCall(context))
+                assertEquals(AudioManager.RINGER_MODE_NORMAL, audio.ringerMode)
+                assertTrue(
+                    audio.getStreamVolume(AudioManager.STREAM_RING) >=
+                        VipRingVolumePolicy.minimumAudibleVolume(audio.getStreamMaxVolume(AudioManager.STREAM_RING))
+                )
+
                 VipRingerOverride.restoreOriginalMode(context)
                 assertEquals("The original Silent/Vibrate mode must be restored", silentMode, audio.ringerMode)
                 assertEquals("The original ringtone volume must be restored", 0, audio.getStreamVolume(AudioManager.STREAM_RING))
