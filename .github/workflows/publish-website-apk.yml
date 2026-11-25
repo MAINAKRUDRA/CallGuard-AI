@@ -54,7 +54,14 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm
+          # KVM is not exposed on every hosted runner image. Do not fail here;
+          # the emulator is configured to use software acceleration below.
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            echo "KVM device detected and permissions configured."
+          else
+            echo "KVM device unavailable; emulator will use software acceleration."
+          fi
 
       - name: Boot Android emulator and launch app
         uses: reactivecircus/android-emulator-runner@v2
@@ -67,7 +74,7 @@ jobs:
           emulator-boot-timeout: 1200
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
           disable-animations: true
-          disable-linux-hw-accel: false
+          disable-linux-hw-accel: true
           cores: 2
           ram-size: 2048
           heap-size: 512
