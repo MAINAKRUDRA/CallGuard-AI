@@ -1,6 +1,7 @@
 package com.mainak.callguardai.screening
 
 import android.telecom.Call
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.telephony.TelephonyManager
@@ -23,7 +24,11 @@ class CallGuardScreeningService : CallScreeningService() {
                 decision.action == ScreeningAction.ALLOW && decision.matchedRule == "allow"
         if (isExplicitVipIncomingCall) {
             val changed = VipRingerOverride.onVipIncomingCall(this)
-            if (changed) Log.i(TAG, "VIP ring override activated; original ringer mode will be restored when the call ends")
+            if (changed) {
+                Log.i(TAG, "VIP ring override activated; original ringer mode and volume will be restored when the call ends")
+            } else {
+                Log.w(TAG, "VIP ring override could not be confirmed; verify VIP toggle and required Android access")
+            }
         }
         val response = CallResponse.Builder()
             .setDisallowCall(decision.action == ScreeningAction.REJECT)
@@ -43,7 +48,7 @@ class CallGuardScreeningService : CallScreeningService() {
             // immediately after the screening response. Re-assert once while
             // the call is still ringing; do not keep fighting later user changes.
             Handler(Looper.getMainLooper()).postDelayed({
-                val telephony = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                val telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
                 if (telephony.callState == TelephonyManager.CALL_STATE_RINGING) {
                     VipRingerOverride.onVipIncomingCall(this)
                 }
