@@ -77,19 +77,7 @@ jobs:
         run: gradle :android:app:assembleDebug
 
       # The emulator runner requires KVM permissions on Linux GitHub-hosted runners.
-      - name: Enable KVM for Android emulator
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          # KVM is not exposed on every hosted runner image. Do not fail here;
-          # the emulator is configured to use software acceleration below.
-          if [ -e /dev/kvm ]; then
-            sudo chmod 666 /dev/kvm
-            echo "KVM device detected and permissions configured."
-          else
-            echo "KVM device unavailable; emulator will use software acceleration."
-          fi
+      # GitHub-hosted runners may not expose /dev/kvm; use software emulation instead.
 
       - name: Boot Android emulator and launch app
         uses: reactivecircus/android-emulator-runner@v2
