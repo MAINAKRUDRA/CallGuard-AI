@@ -51,7 +51,7 @@ jobs:
 
   emulator-smoke:
     name: Android API 35 emulator smoke test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - name: Checkout
