@@ -50,7 +50,7 @@ class CallGuardScreeningService : CallScreeningService() {
             Handler(Looper.getMainLooper()).postDelayed({
                 val telephony = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
                 if (telephony.callState == TelephonyManager.CALL_STATE_RINGING) {
-                    VipRingerOverride.onVipIncomingCall(this)
+                    VipRingerOverride.reassertForPendingVipCall(this)
                 }
             }, VIP_RING_REASSERT_DELAY_MS)
         }
