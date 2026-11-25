@@ -47,20 +47,25 @@ class VipRingerOverrideInstrumentedTest {
             assumeTrue("Test device must grant VIP override permissions", VipRingerOverride.hasRequiredAccess(context))
 
             VipRingerOverride.setEnabled(context, true)
-            audio.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
-            audio.ringerMode = AudioManager.RINGER_MODE_SILENT
+            for (silentMode in listOf(AudioManager.RINGER_MODE_SILENT, AudioManager.RINGER_MODE_VIBRATE)) {
+                audio.setStreamVolume(AudioManager.STREAM_RING, 0, 0)
+                audio.ringerMode = silentMode
 
-            assertTrue("VIP override should activate from Silent mode", VipRingerOverride.onVipIncomingCall(context))
-            assertEquals(AudioManager.RINGER_MODE_NORMAL, audio.ringerMode)
-            assertTrue(
-                "VIP ringtone stream must be audible",
-                audio.getStreamVolume(AudioManager.STREAM_RING) >=
-                    VipRingVolumePolicy.minimumAudibleVolume(audio.getStreamMaxVolume(AudioManager.STREAM_RING))
-            )
+                assertTrue(
+                    "VIP override should activate from Silent or Vibrate mode",
+                    VipRingerOverride.onVipIncomingCall(context)
+                )
+                assertEquals(AudioManager.RINGER_MODE_NORMAL, audio.ringerMode)
+                assertTrue(
+                    "VIP ringtone stream must be audible",
+                    audio.getStreamVolume(AudioManager.STREAM_RING) >=
+                        VipRingVolumePolicy.minimumAudibleVolume(audio.getStreamMaxVolume(AudioManager.STREAM_RING))
+                )
 
-            VipRingerOverride.restoreOriginalMode(context)
-            assertEquals("Original ringer mode must be restored", originalMode, audio.ringerMode)
-            assertEquals("Original ringtone volume must be restored", originalVolume, audio.getStreamVolume(AudioManager.STREAM_RING))
+                VipRingerOverride.restoreOriginalMode(context)
+                assertEquals("The original Silent/Vibrate mode must be restored", silentMode, audio.ringerMode)
+                assertEquals("The original ringtone volume must be restored", 0, audio.getStreamVolume(AudioManager.STREAM_RING))
+            }
         } finally {
             VipRingerOverride.restoreOriginalMode(context)
             VipRingerOverride.setEnabled(context, originalVipEnabled)
