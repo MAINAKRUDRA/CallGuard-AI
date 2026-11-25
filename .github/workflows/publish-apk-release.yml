@@ -19,7 +19,7 @@ jobs:
   emulator-smoke:
     name: Android API 35 emulator instrumentation
     if: github.ref_type == 'tag' && (github.event_name == 'push' || inputs.confirm_release == true)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
