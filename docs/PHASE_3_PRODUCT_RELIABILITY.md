@@ -72,9 +72,18 @@ For every device, test:
 
 Do not mark a manufacturer row complete without physical evidence. Hosted Android emulators cannot validate OEM telephony stacks, vendor battery managers, SIM/carrier behavior, or OEM-specific DND restrictions.
 
+## VIP ringer override follow-up
+
+- [x] Raise Silent/Vibrate to Normal for an explicit allow-list match.
+- [x] Raise zero or very-low ring-stream volume to at least half of the device's ring-volume range for the VIP ring window.
+- [x] Restore the previous ring volume only when it still equals the temporary value CallGuard set; preserve a newer user volume adjustment.
+- [x] Re-assert the VIP ring state once, 300 ms after the screening response, only while Android still reports an incoming ringing call.
+- [x] Add JVM policy tests and an instrumentation test for Silent and Vibrate transitions plus restoration.
+- [ ] Verify audible ringtone output on physical Pixel, Samsung, Xiaomi/Redmi, Motorola, and OnePlus devices with SIM calls. Emulator audio state is not proof of actual speaker/ringtone output.
+
 ## Current implementation notes
 
-The accessibility pass in `MainActivity.kt` marks section titles as headings on API 28+, uses polite live regions for status/history, labels phone-number and region inputs, and provides explicit switch descriptions and 48 dp minimum touch heights. Dashboard statistic cards reflow into a two-column rules row plus a full-width activity row and can grow vertically with larger text.
+The VIP ringer path in `VipRingerOverride.kt` now raises the ring stream to at least half of its available range when it is zero/very low, switches Silent/Vibrate to Normal, and conditionally restores the original volume/mode after the call. The screening service reasserts the state once after 300 ms if the call is still ringing. `VipRingerOverrideInstrumentedTest.kt` covers Silent and Vibrate state changes and restoration; real ringtone output still needs SIM-based hardware validation.\n\nThe accessibility pass in `MainActivity.kt` marks section titles as headings on API 28+, uses polite live regions for status/history, labels phone-number and region inputs, and provides explicit switch descriptions and 48 dp minimum touch heights. Dashboard statistic cards reflow into a two-column rules row plus a full-width activity row and can grow vertically with larger text.
 
 `RuleManagementInstrumentedTest.kt` covers allow/block creation, normalized persistence, invalid-number rejection, allow removal, block removal, and region validation. `SecureStorageInstrumentedTest.kt` covers encrypted history retention, the 1,000-event cap, clearing, missing-key preservation, and legacy migration. `LifecycleAndRecoveryInstrumentedTest.kt` adds Contacts / Phone state / Notification Policy Access revocation and recovery, biometric lock persistence across Activity recreation, history-clear UI behavior while preserving rules, and landscape / 2.0x font-scale dashboard smoke tests. Process-death and reboot checks remain manual because terminating or rebooting the target device from its own instrumentation process is not a reliable substitute for an independent device-level test.
 
@@ -90,7 +99,7 @@ These are test definitions, not passing results. They must pass in CI on the exa
 | Dashboard and rule Espresso checks | Added; awaiting CI | `DashboardAccessibilityInstrumentedTest.kt`, `RuleManagementInstrumentedTest.kt` |
 | Contacts / Phone state / DND access revocation and recovery; biometric Activity recreation; landscape; 2.0x font scale | Added; awaiting CI | `LifecycleAndRecoveryInstrumentedTest.kt` |
 | History retention, cap, missing key, migration, clear | Added; awaiting CI | `SecureStorageInstrumentedTest.kt` |
-| TalkBack / font scaling / compact-screen validation | Not verified | Physical device required |
+| TalkBack / font scaling / compact-screen validation | Not verified | Physical device required |\n| VIP Silent/Vibrate state + volume restoration | Added; awaiting CI and physical audio check | `VipRingerOverrideInstrumentedTest.kt`, `RingerRestorePolicyTest.kt` |
 | Reboot / SIM telephony / OEM call screening and VIP restore | Not verified | Physical device required |
 
 Do not close a validation item without current evidence for the exact commit under test.
