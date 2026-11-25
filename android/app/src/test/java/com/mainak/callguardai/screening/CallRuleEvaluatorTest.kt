@@ -25,7 +25,7 @@ class CallRuleEvaluatorTest {
         val result = CallRuleEvaluator.evaluate(blocked, emptySet(), setOf(blocked))
         assertEquals(ScreeningAction.REJECT, result.action)
         assertEquals("block", result.matchedRule)
-        assertEquals("Explicit user block rule", result.reason)
+        assertEquals("Number is in the local user-reported spam/block list", result.reason)
     }
 
     @Test fun unknownCallerIsAllowedBySafeDefault() {
