@@ -24,7 +24,9 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.mainak.callguardai.contacts.ContactImporter
@@ -35,7 +37,7 @@ import com.mainak.callguardai.screening.VipRingerOverride
 import java.text.DateFormat
 import java.util.Date
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private lateinit var status: TextView
     private lateinit var rulesView: TextView
     private lateinit var historyView: TextView
@@ -49,6 +51,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var vipRingSwitch: Switch
     private lateinit var ringerStatus: TextView
     private lateinit var dndAccessStatus: TextView
+    private lateinit var biometricLockSwitch: Switch
+    private var biometricPromptActive = false
+    private var appUnlocked = false
+    private var returnLockPending = false
 
     private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         updateRoleStatus()
@@ -116,8 +122,28 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        buildScreen()
-        refreshScreen()
+        if (isBiometricLockEnabled()) {
+            showBiometricGate()
+        } else {
+            buildScreen()
+            refreshScreen()
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (returnLockPending && isBiometricLockEnabled()) {
+            returnLockPending = false
+            showBiometricGate()
+        }
+    }
+
+    override fun onStop() {
+        if (isBiometricLockEnabled() && appUnlocked && !biometricPromptActive) {
+            appUnlocked = false
+            returnLockPending = true
+        }
+        super.onStop()
     }
 
     override fun onResume() {
@@ -132,6 +158,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun buildScreen() {
+        val compactWidth = resources.configuration.screenWidthDp < 360
+        val horizontalPadding = if (compactWidth) 14 else 18
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(241, 246, 250))
@@ -143,7 +171,7 @@ class MainActivity : ComponentActivity() {
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(18), dp(18), dp(28))
+            setPadding(dp(horizontalPadding), dp(18), dp(horizontalPadding), dp(28))
         }
 
         val hero = LinearLayout(this).apply {
@@ -152,7 +180,7 @@ class MainActivity : ComponentActivity() {
             setPadding(dp(22), dp(24), dp(22), dp(22))
         }
         hero.addView(label("✦  CALLGUARD AI  /  SMART CALL PROTECTION", "#9DE9DF", 11, true))
-        hero.addView(label("Your calls.\nYour rules.", "#FFFFFF", 32, true).apply {
+        hero.addView(label("Your calls.\nYour rules.", "#FFFFFF", if (compactWidth) 28 else 32, true).apply {
             setPadding(0, dp(12), 0, dp(8))
         })
         hero.addView(label("A private, allow-first screening dashboard. Unknown callers are allowed unless you explicitly block them.", "#D6E1EF", 14, false))
@@ -171,22 +199,28 @@ class MainActivity : ComponentActivity() {
         content.addView(hero, matchWrap())
 
         status = label("Checking call screening status…", "#334155", 13, true).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
             background = rounded("#FFFFFF", 16, "#DCE7EF")
             setPadding(dp(14), dp(13), dp(14), dp(13))
         }
         content.addView(status, matchWrap().apply { topMargin = dp(12) })
 
         content.addView(sectionTitle("Overview"), matchWrap().apply { topMargin = dp(24) })
-        val stats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        allowCount = statCard(stats, "VIP / ALLOWED", "0", "#E8F5EE", "#147A48")
-        blockCount = statCard(stats, "BLOCKED", "0", "#FDECEC", "#B42318")
-        activityCount = statCard(stats, "ACTIVITY", "0", "#EAF1FC", "#245A9B")
+        val stats = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val rulesStats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        allowCount = statCard(rulesStats, "VIP / ALLOWED", "0", "#E8F5EE", "#147A48")
+        blockCount = statCard(rulesStats, "BLOCKED", "0", "#FDECEC", "#B42318")
+        val activityStats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        activityCount = statCard(activityStats, "ACTIVITY", "0", "#EAF1FC", "#245A9B")
+        stats.addView(rulesStats, matchWrap())
+        stats.addView(activityStats, matchWrap().apply { topMargin = dp(8) })
         content.addView(stats, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Manage a phone number"), matchWrap().apply { topMargin = dp(24) })
         content.addView(label("Add a number once, then choose what CallGuard should do with it.", "#64748B", 13, false), matchWrap())
         numberInput = EditText(this).apply {
             hint = "+91 98765 43210"
+            contentDescription = "Phone number to add to the allow or block list"
             inputType = android.text.InputType.TYPE_CLASS_PHONE
             setSingleLine(true)
             textSize = 16f
@@ -197,8 +231,19 @@ class MainActivity : ComponentActivity() {
         }
         content.addView(numberInput, matchWrap().apply { topMargin = dp(12) })
         val actions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+            orientation = if (compactWidth) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
+        }
+        val actionButtonHeight = ViewGroup.LayoutParams.WRAP_CONTENT
+        val allowActionParams = if (compactWidth) {
+            matchWrap().apply { topMargin = dp(8) }
+        } else {
+            LinearLayout.LayoutParams(0, actionButtonHeight, 1f).apply { rightMargin = dp(6) }
+        }
+        val blockActionParams = if (compactWidth) {
+            matchWrap().apply { topMargin = dp(8) }
+        } else {
+            LinearLayout.LayoutParams(0, actionButtonHeight, 1f).apply { leftMargin = dp(6) }
         }
         actions.addView(actionButton("Allow / VIP", true) {
             val value = numberInput.text.toString()
@@ -207,7 +252,7 @@ class MainActivity : ComponentActivity() {
                 showStatus("Number added to your VIP allow-list.")
                 refreshScreen()
             } else showStatus("Enter a valid phone number for the selected region.")
-        }, LinearLayout.LayoutParams(0, dp(50), 1f).apply { rightMargin = dp(6) })
+        }, allowActionParams)
         actions.addView(actionButton("Block number", false) {
             val value = numberInput.text.toString()
             if (CallGuardPolicy.addBlock(this@MainActivity, value)) {
@@ -215,7 +260,7 @@ class MainActivity : ComponentActivity() {
                 showStatus("Number blocked. VIP allow rules still take priority.")
                 refreshScreen()
             } else showStatus("Enter a valid phone number for the selected region.")
-        }, LinearLayout.LayoutParams(0, dp(50), 1f).apply { leftMargin = dp(6) })
+        }, blockActionParams)
         content.addView(actions, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Contacts"), matchWrap().apply { topMargin = dp(24) })
@@ -234,7 +279,7 @@ class MainActivity : ComponentActivity() {
         content.addView(sectionTitle("VIP ring override"), matchWrap().apply { topMargin = dp(24) })
         val vipCard = card()
         vipCard.addView(label("Let VIP callers ring through Silent / Vibrate / DND", "#172B45", 16, true))
-        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches Silent/Vibrate to Ring and pauses the active Do Not Disturb filter. It restores the saved phone modes after the call ends. This requires Android permissions and may be restricted by some devices.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
+        vipCard.addView(label("When an explicitly allowed VIP calls, CallGuard temporarily switches Silent/Vibrate to Ring, raises a zero or very-low ringtone volume to at least 50%, and pauses active Do Not Disturb. It restores the previous ringer mode and volume after the call unless you change them yourself. Android or some phone manufacturers may still restrict this feature.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(6) })
         ringerStatus = label("Current phone mode: checking…", "#245A9B", 12, true).apply {
             background = rounded("#EAF1FC", 10)
             setPadding(dp(10), dp(9), dp(10), dp(9))
@@ -254,6 +299,8 @@ class MainActivity : ComponentActivity() {
         }
         vipRingSwitch = Switch(this).apply {
             text = "Enable VIP ring override"
+            contentDescription = "Enable or disable the optional VIP ringer and Do Not Disturb override"
+            minHeight = dp(48)
             textSize = 14f
             setTextColor(Color.rgb(34, 57, 83))
             setOnCheckedChangeListener { _, checked ->
@@ -270,7 +317,11 @@ class MainActivity : ComponentActivity() {
 
         content.addView(sectionTitle("Your rules"), matchWrap().apply { topMargin = dp(24) })
         val rulesCard = card()
-        rulesView = label("Loading your encrypted rules…", "#334155", 13, false)
+        rulesView = label("Loading your encrypted rules…", "#334155", 13, false).apply {
+            minHeight = dp(48)
+            contentDescription = "Saved allow and block rules. Activate to manage rules."
+            isFocusable = true
+        }
         rulesView.setTextIsSelectable(true)
         rulesView.setOnClickListener { showRuleManagementDialog() }
         rulesCard.addView(rulesView, matchWrap())
@@ -282,6 +333,7 @@ class MainActivity : ComponentActivity() {
         settingsCard.addView(label("Used to normalize local phone numbers. Enter a two-letter country code.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
         regionInput = EditText(this).apply {
             hint = "IN"
+            contentDescription = "Two-letter default country or region code for phone number formatting"
             setSingleLine(true)
             textSize = 16f
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
@@ -296,11 +348,46 @@ class MainActivity : ComponentActivity() {
                 showStatus("Phone region saved as ${region.trim().uppercase()}.")
             } else showStatus("Enter a supported two-letter country code, such as IN or US.")
         }, matchWrap().apply { topMargin = dp(10) })
+
+        settingsCard.addView(label("Biometric app lock", "#172B45", 16, true), matchWrap().apply { topMargin = dp(18) })
+        settingsCard.addView(label("Require Android biometric authentication before opening your CallGuard rules and activity. Biometric data stays with Android and is never collected by CallGuard.", "#64748B", 13, false), matchWrap().apply { topMargin = dp(5) })
+        biometricLockSwitch = Switch(this).apply {
+            text = "Require biometrics to open app"
+            contentDescription = "Require a supported strong device biometric before opening CallGuard"
+            minHeight = dp(48)
+            textSize = 14f
+            setTextColor(Color.rgb(34, 57, 83))
+            isChecked = isBiometricLockEnabled()
+            setOnCheckedChangeListener { _, enabled ->
+                isEnabled = false
+                authenticateBiometric(
+                    if (enabled) "Enable CallGuard biometric lock" else "Disable CallGuard biometric lock",
+                    if (enabled) "Confirm your biometric to protect this app." else "Confirm your biometric to turn off app lock.",
+                    onSuccess = {
+                        appUnlocked = true
+                        setBiometricLockEnabled(enabled)
+                        biometricLockSwitch.isChecked = enabled
+                        biometricLockSwitch.isEnabled = true
+                        showStatus(if (enabled) "Biometric app lock enabled." else "Biometric app lock disabled.")
+                    },
+                    onFailure = { message ->
+                        biometricLockSwitch.setOnCheckedChangeListener(null)
+                        biometricLockSwitch.isChecked = isBiometricLockEnabled()
+                        biometricLockSwitch.isEnabled = true
+                        biometricLockSwitch.setOnCheckedChangeListener { _, checked -> toggleBiometricLock(checked) }
+                        showStatus(message)
+                    }
+                )
+            }
+        }
+        settingsCard.addView(biometricLockSwitch, matchWrap().apply { topMargin = dp(8) })
         content.addView(settingsCard, matchWrap().apply { topMargin = dp(10) })
 
         content.addView(sectionTitle("Recent screening activity"), matchWrap().apply { topMargin = dp(24) })
         val historyCard = card()
-        historyView = label("No screening events recorded yet.", "#334155", 13, false)
+        historyView = label("No screening events recorded yet.", "#334155", 13, false).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
         historyCard.addView(historyView, matchWrap())
         content.addView(historyCard, matchWrap().apply { topMargin = dp(10) })
         content.addView(actionButton("Clear activity history", false) {
@@ -332,16 +419,125 @@ class MainActivity : ComponentActivity() {
         setContentView(root)
     }
 
+    private fun isBiometricLockEnabled(): Boolean =
+        getSharedPreferences("callguard_app_security", Context.MODE_PRIVATE)
+            .getBoolean("biometric_lock_enabled", false)
+
+    private fun setBiometricLockEnabled(enabled: Boolean) {
+        getSharedPreferences("callguard_app_security", Context.MODE_PRIVATE)
+            .edit().putBoolean("biometric_lock_enabled", enabled).commit()
+    }
+
+    private fun toggleBiometricLock(enabled: Boolean) {
+        biometricLockSwitch.isEnabled = false
+        authenticateBiometric(
+            if (enabled) "Enable CallGuard biometric lock" else "Disable CallGuard biometric lock",
+            "Confirm your biometric to update app security.",
+            onSuccess = {
+                appUnlocked = true
+                setBiometricLockEnabled(enabled)
+                biometricLockSwitch.isChecked = enabled
+                biometricLockSwitch.isEnabled = true
+                showStatus(if (enabled) "Biometric app lock enabled." else "Biometric app lock disabled.")
+            },
+            onFailure = { message ->
+                biometricLockSwitch.setOnCheckedChangeListener(null)
+                biometricLockSwitch.isChecked = isBiometricLockEnabled()
+                biometricLockSwitch.isEnabled = true
+                biometricLockSwitch.setOnCheckedChangeListener { _, checked -> toggleBiometricLock(checked) }
+                showStatus(message)
+            }
+        )
+    }
+
+    private fun showBiometricGate() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(28), dp(28), dp(28))
+            setBackgroundColor(Color.rgb(10, 28, 48))
+        }
+        val message = label("CALLGUARD AI\n\nApp locked\nAuthenticate with your device biometric to continue.", "#FFFFFF", 20, true).apply {
+            gravity = Gravity.CENTER
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+        }
+        root.addView(message, matchWrap())
+        root.addView(actionButton("Unlock with biometrics", true) {
+            authenticateBiometric(
+                "Unlock CallGuard AI",
+                "Authenticate with an enrolled strong biometric.",
+                onSuccess = { appUnlocked = true; buildScreen(); refreshScreen() },
+                onFailure = { error -> message.text = "Authentication required.\n$error" }
+            )
+        }, matchWrap().apply { topMargin = dp(22) })
+        setContentView(root)
+        root.post {
+            authenticateBiometric(
+                "Unlock CallGuard AI",
+                "Authenticate with an enrolled strong biometric.",
+                onSuccess = { appUnlocked = true; buildScreen(); refreshScreen() },
+                onFailure = { message.text = "Authentication required. Tap below to try again." }
+            )
+        }
+    }
+
+    private fun authenticateBiometric(
+        title: String,
+        subtitle: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit
+    ) {
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG
+        val availability = BiometricManager.from(this).canAuthenticate(authenticators)
+        if (availability != BiometricManager.BIOMETRIC_SUCCESS) {
+            val reason = when (availability) {
+                BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "This device has no supported biometric sensor."
+                BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "The biometric sensor is temporarily unavailable."
+                BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "Enroll a supported strong biometric in Android device security before enabling app lock."
+                BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> "Update Android security before using biometric authentication."
+                else -> "Strong biometric authentication is not currently available on this device."
+            }
+            onFailure(reason)
+            return
+        }
+        biometricPromptActive = true
+        val prompt = BiometricPrompt(
+            this,
+            ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    biometricPromptActive = false
+                    onSuccess()
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    biometricPromptActive = false
+                    onFailure("Authentication was not completed: $errString")
+                }
+                override fun onAuthenticationFailed() {
+                    // Keep the system prompt open so the user can retry.
+                }
+            }
+        )
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setNegativeButtonText("Cancel")
+            .setAllowedAuthenticators(authenticators)
+            .build()
+        prompt.authenticate(promptInfo)
+    }
+
     private fun statCard(parent: LinearLayout, title: String, value: String, backgroundColor: String, valueColor: String): TextView {
         val item = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = rounded(backgroundColor, 18)
+            minimumHeight = dp(94)
             setPadding(dp(13), dp(15), dp(10), dp(15))
         }
         item.addView(label(title, "#526174", 10, true))
         val number = label(value, valueColor, 25, true)
         item.addView(number, matchWrap().apply { topMargin = dp(7) })
-        parent.addView(item, LinearLayout.LayoutParams(0, dp(94), 1f).apply {
+        parent.addView(item, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
             if (parent.childCount > 0) leftMargin = dp(7)
             rightMargin = dp(3)
         })
@@ -375,13 +571,23 @@ class MainActivity : ComponentActivity() {
         }
 
         val store = CallEventStore(this)
-        val events = try { store.latest(30) } finally { store.close() }
-        activityCount.text = events.size.toString()
-        historyView.text = if (events.isEmpty()) {
-            "No screening events recorded yet. Activity appears here after the screening role is enabled and calls arrive."
-        } else events.joinToString("\n\n────────────────────\n\n") { event ->
-            val whenText = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(event.timestamp))
-            "${event.action.uppercase()}  ·  ${event.number}\n${whenText}\n${event.reason}"
+        val historyResult = try {
+            runCatching { store.latest(30) }
+        } finally {
+            store.close()
+        }
+        historyResult.onSuccess { events ->
+            activityCount.text = events.size.toString()
+            historyView.text = if (events.isEmpty()) {
+                "No screening events recorded yet. Activity appears here after the screening role is enabled and calls arrive."
+            } else events.joinToString("\n\n────────────────────\n\n") { event ->
+                val whenText = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(event.timestamp))
+                "${event.action.uppercase()}  ·  ${event.number}\n${whenText}\n${event.reason}"
+            }
+        }.onFailure { error ->
+            activityCount.text = "—"
+            historyView.text = "Call history could not be decrypted. Your stored records have been preserved; do not clear app data or reinstall. Contact support to recover access."
+            showStatus("Call-history storage error: ${error.message ?: "Android Keystore unavailable"}")
         }
     }
 
@@ -588,6 +794,7 @@ class MainActivity : ComponentActivity() {
 
     private fun sectionTitle(value: String) = label(value, "#172B45", 19, true).apply {
         setPadding(0, 0, 0, dp(2))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) isAccessibilityHeading = true
     }
 
     private fun label(value: String, color: String, size: Int, bold: Boolean) = TextView(this).apply {

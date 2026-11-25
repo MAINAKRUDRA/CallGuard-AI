@@ -104,14 +104,20 @@ class SecureRuleStore(context: Context) {
         require(ivSize in 12..16 && payload.size > 1 + ivSize) { "Invalid encrypted payload" }
         val iv = payload.copyOfRange(1, 1 + ivSize)
         val ciphertext = payload.copyOfRange(1 + ivSize, payload.size)
+        val key = getExistingKey()
+            ?: throw IllegalStateException("Call rules encryption key is missing; encrypted rules were preserved")
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(128, iv))
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
         return cipher.doFinal(ciphertext)
     }
 
-    private fun getOrCreateKey(): SecretKey {
+    private fun getExistingKey(): SecretKey? {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        return keyStore.getKey(KEY_ALIAS, null) as? SecretKey
+    }
+
+    private fun getOrCreateKey(): SecretKey {
+        getExistingKey()?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
             KeyGenParameterSpec.Builder(

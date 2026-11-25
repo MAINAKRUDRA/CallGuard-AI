@@ -1,5 +1,7 @@
 package com.mainak.callguardai.data
 
+import android.content.ContentValues
+import android.database.sqlite.SQLiteDatabase
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mainak.callguardai.screening.PhoneNumberCanonicalizer
@@ -9,6 +11,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.nio.charset.StandardCharsets
+import java.security.KeyStore
 
 @RunWith(AndroidJUnit4::class)
 class SecureStorageInstrumentedTest {
@@ -58,6 +62,137 @@ class SecureStorageInstrumentedTest {
             assertEquals("current", store.latest(10).first().reason)
         } finally {
             store.close()
+        }
+    }
+
+    @Test fun callHistoryIsCappedAtOneThousandAndCanBeCleared() {
+        context.deleteDatabase("callguard.db")
+        val store = CallEventStore(context)
+        try {
+            repeat(1_005) { index ->
+                store.insert(
+                    System.currentTimeMillis() + index,
+                    "••••" + (1000 + index).toString().takeLast(4),
+                    "ALLOW",
+                    "test-event"
+                )
+            }
+            assertEquals(1_000, store.latest(1_000).size)
+            store.clearHistory()
+            assertTrue(store.latest(1_000).isEmpty())
+        } finally {
+            store.close()
+        }
+    }
+
+    @Test fun missingRulesKeyPreservesCiphertextAndDoesNotCreateReplacement() {
+        val prefs = context.getSharedPreferences("callguard_secure_rules", 0)
+        prefs.edit().clear().commit()
+        context.getSharedPreferences("callguard_rules", 0).edit().clear().commit()
+
+        assertTrue(SecureRuleStore(context).addAllow("+919876543210"))
+        val ciphertextBefore = prefs.getString("rules_aes_gcm", null)
+        assertTrue(!ciphertextBefore.isNullOrBlank())
+
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        keyStore.deleteEntry("callguard.rules.aes256.v1")
+
+        val error = runCatching { SecureRuleStore(context).allowed() }.exceptionOrNull()
+        assertTrue(error is IllegalStateException)
+        assertEquals(ciphertextBefore, prefs.getString("rules_aes_gcm", null))
+        assertTrue(keyStore.getKey("callguard.rules.aes256.v1", null) == null)
+
+        // Isolate later tests; a fresh empty store may create a new key on its next write.
+        prefs.edit().clear().commit()
+    }
+
+    @Test fun missingHistoryKeyPreservesEncryptedRowsAndDoesNotCreateReplacement() {
+        context.deleteDatabase("callguard.db")
+        val store = CallEventStore(context)
+        try {
+            store.insert(System.currentTimeMillis(), "••••9876", "ALLOW", "key-loss-check")
+        } finally {
+            store.close()
+        }
+
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        keyStore.deleteEntry("callguard.history.aes256.v1")
+
+        val readStore = CallEventStore(context)
+        try {
+            val error = runCatching { readStore.latest(10) }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
+        } finally {
+            readStore.close()
+        }
+        assertTrue(keyStore.getKey("callguard.history.aes256.v1", null) == null)
+
+        val db = SQLiteDatabase.openDatabase(
+            context.getDatabasePath("callguard.db").absolutePath,
+            null,
+            SQLiteDatabase.OPEN_READONLY
+        )
+        try {
+            db.rawQuery("SELECT number_cipher, action_cipher, reason_cipher FROM call_events", null).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.getBlob(0).isNotEmpty())
+                assertTrue(cursor.getBlob(1).isNotEmpty())
+                assertTrue(cursor.getBlob(2).isNotEmpty())
+            }
+        } finally {
+            db.close()
+        }
+        context.deleteDatabase("callguard.db")
+    }
+
+    @Test fun versionTwoHistoryMigratesWithoutPlaintextRemaining() {
+        context.deleteDatabase("callguard.db")
+        val legacyDb = SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath("callguard.db"), null)
+        legacyDb.execSQL("""
+            CREATE TABLE call_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                number TEXT NOT NULL,
+                action TEXT NOT NULL,
+                reason TEXT NOT NULL
+            )
+        """.trimIndent())
+        legacyDb.execSQL("CREATE INDEX index_call_events_timestamp ON call_events(timestamp DESC)")
+        legacyDb.insertOrThrow("call_events", null, ContentValues().apply {
+            put("timestamp", System.currentTimeMillis())
+            put("number", "••••9876")
+            put("action", "ALLOW")
+            put("reason", "migration-check")
+        })
+        legacyDb.version = 2
+        legacyDb.close()
+
+        val store = CallEventStore(context)
+        try {
+            val migrated = store.latest(10).single()
+            assertEquals("••••9876", migrated.number)
+            assertEquals("ALLOW", migrated.action)
+            assertEquals("migration-check", migrated.reason)
+        } finally {
+            store.close()
+        }
+
+        val encryptedDb = SQLiteDatabase.openDatabase(
+            context.getDatabasePath("callguard.db").absolutePath,
+            null,
+            SQLiteDatabase.OPEN_READONLY
+        )
+        try {
+            encryptedDb.rawQuery("SELECT number_cipher, action_cipher, reason_cipher FROM call_events", null).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                for (index in 0..2) {
+                    val value = String(cursor.getBlob(index), StandardCharsets.UTF_8)
+                    assertFalse(value.contains("••••9876"))
+                    assertFalse(value.contains("migration-check"))
+                }
+            }
+        } finally {
+            encryptedDb.close()
         }
     }
 }
