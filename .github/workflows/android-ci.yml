@@ -76,19 +76,35 @@ jobs:
       - name: Build debug APK
         run: gradle :android:app:assembleDebug
 
+      # The emulator runner requires KVM permissions on Linux GitHub-hosted runners.
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm
+
       - name: Boot Android emulator and launch app
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
+          target: google_apis
           arch: x86_64
           profile: pixel_2
+          emulator-port: 5554
           emulator-boot-timeout: 1200
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
           disable-animations: true
+          disable-linux-hw-accel: false
           cores: 2
           ram-size: 2048
           heap-size: 512
           script: |
+            set -euo pipefail
+            adb devices -l
+            adb wait-for-device
+            timeout 120s bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+            adb shell getprop sys.boot_completed
             timeout 15m gradle :android:app:connectedDebugAndroidTest
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.mainak.callguardai
@@ -100,5 +116,7 @@ jobs:
         if: failure()
         run: |
           adb devices -l || true
-          adb shell getprop sys.boot_completed || true
-          adb logcat -d -t 1500 || true
+          pgrep -af 'emulator|qemu' || true
+          ls -la "$HOME/.android/avd" || true
+          adb -s emulator-5554 shell getprop sys.boot_completed || true
+          adb -s emulator-5554 logcat -d -t 1500 || true
