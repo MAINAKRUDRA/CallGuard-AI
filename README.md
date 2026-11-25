@@ -24,6 +24,14 @@ Android-first call screening and personal call management.
 - Phone numbers are validated and canonicalized to E.164 using Google's libphonenumber. Users can select a supported two-letter region; international numbers beginning with + are parsed independently of that region.
 - The optional biometric lock is a system BiometricPrompt UI gate. It is **not** biometric-bound encryption or per-operation cryptographic authentication.
 
+## Spam screening behaviour
+
+- The encrypted local block list is the device's user-maintained spam list. Adding a number to Block causes Android CallScreeningService to reject it before it rings; removing the rule restores normal screening.
+- Explicit allow/VIP rules take precedence over the local spam list.
+- Unknown numbers remain allowed unless the user has explicitly blocked/reported them. This avoids disconnecting legitimate callers based only on an unverified or spoofable signal.
+- Android caller-number verification is a network-provided verification signal, not a Truecaller/Phone-app spam verdict. The app cannot read private spam labels from Truecaller or another dialer. No third-party label integration is claimed.
+- A future verified spam-feed integration can add corroborated reputation data, with VIP allow rules always taking precedence.
+
 ## Technical baseline
 
 - Native Android / Kotlin; minimum API 26; target API 35
