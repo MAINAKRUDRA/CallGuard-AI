@@ -95,14 +95,14 @@ object VipRingerOverride {
             // Raise a zero/very-low ringtone stream as well as leaving Silent/Vibrate.
             // The original stream volume is restored after the call if the user has
             // not changed it again in the meantime.
-            if (needsVolumeChange) {
-                audio.setStreamVolume(AudioManager.STREAM_RING, targetRingVolume, 0)
-            }
             if (needsDndChange && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
             }
             if (needsRingerChange) {
                 audio.ringerMode = AudioManager.RINGER_MODE_NORMAL
+            }
+            if (needsVolumeChange) {
+                audio.setStreamVolume(AudioManager.STREAM_RING, targetRingVolume, 0)
             }
             val dndCleared = !needsDndChange || Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
                 notificationManager.currentInterruptionFilter == NotificationManager.INTERRUPTION_FILTER_ALL
