@@ -124,9 +124,22 @@ object VipRingerOverride {
     /** Re-apply only when the screening service has already marked this call as VIP. */
     @Synchronized
     fun reassertForPendingVipCall(context: Context): Boolean {
-        val pending = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getBoolean(KEY_PENDING, false)
-        return pending && onVipIncomingCall(context)
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_PENDING, false) || !isEnabled(context)) return false
+
+        val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val originalMode = prefs.getInt(KEY_ORIGINAL_MODE, AudioManager.RINGER_MODE_NORMAL)
+        val originalVolume = prefs.getInt(KEY_ORIGINAL_RING_VOLUME, -1)
+        val temporaryVolume = prefs.getInt(KEY_TEMP_RING_VOLUME, originalVolume)
+        val currentVolume = audio.getStreamVolume(AudioManager.STREAM_RING)
+
+        // Reassert only when Telecom appears to have restored the pre-call state.
+        // A different mode or volume is treated as a newer user choice.
+        val volumeStillAtCallGuardOrOriginalValue =
+            currentVolume == originalVolume || currentVolume == temporaryVolume
+        if (audio.ringerMode != originalMode || !volumeStillAtCallGuardOrOriginalValue) return false
+
+        return onVipIncomingCall(context)
     }
 
     @Synchronized
