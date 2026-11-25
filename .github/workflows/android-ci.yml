@@ -87,13 +87,13 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-port: 5554
-          emulator-boot-timeout: 1200
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data
+          emulator-boot-timeout: 1800
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader -no-snapshot -wipe-data
           disable-animations: true
           disable-linux-hw-accel: true
           cores: 2
-          ram-size: 2048
-          heap-size: 512
+          ram-size: 4096
+          heap-size: 1024
           script: |
             set -euo pipefail
             adb devices -l
@@ -113,5 +113,5 @@ jobs:
           adb devices -l || true
           pgrep -af 'emulator|qemu' || true
           ls -la "$HOME/.android/avd" || true
-          adb -s emulator-5554 shell getprop sys.boot_completed || true
-          adb -s emulator-5554 logcat -d -t 1500 || true
+          adb shell getprop sys.boot_completed || true
+          adb logcat -d -t 1500 || true
